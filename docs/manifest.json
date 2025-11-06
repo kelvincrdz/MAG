@@ -1,0 +1,17 @@
+{
+  "name": "MAG Player",
+  "short_name": "MAG",
+  "description": "Reprodutor de áudio com visual de cassette, suporte a arquivos .mag e PWA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#001010",
+  "theme_color": "#6ccff6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -7,4 +7,11 @@ const withPWA = require('next-pwa')({
 
 module.exports = withPWA({
   reactStrictMode: true,
+  output: 'export',
+  distDir: 'docs',
+  assetPrefix: '/MAG_01/',
+  basePath: '/MAG_01',
+  images: {
+    unoptimized: true
+  }
 });
