@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { isAuthenticated, setAuth } from '../utils/auth';
 
-const CODIGO_CORRETO = 'MAG2025';
+const CODIGO_CORRETO = 'ORC/DDAE-11.25';
 
 export default function IndexPage() {
   const router = useRouter();
