@@ -5,12 +5,17 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
 });
 
+// Determina se estamos no Vercel ou GitHub Pages
+const isVercel = process.env.VERCEL === '1';
+const repoName = 'MAG_01';
+
 module.exports = withPWA({
   reactStrictMode: true,
   output: 'export',
   distDir: 'docs',
-  assetPrefix: '/MAG_01/',
-  basePath: '/MAG_01',
+  // Só aplica assetPrefix e basePath se não estiver no Vercel
+  assetPrefix: isVercel ? undefined : `/${repoName}/`,
+  basePath: isVercel ? undefined : `/${repoName}`,
   images: {
     unoptimized: true
   }
