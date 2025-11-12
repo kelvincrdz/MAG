@@ -2,6 +2,7 @@
 
 const AUTH_KEY = 'magPlayerLogado';
 const TIMESTAMP_KEY = 'magPlayerTimestamp';
+const USER_DATA_KEY = 'magPlayerUserData';
 const SESSION_DURATION_HOURS = 24;
 
 /**
@@ -13,8 +14,9 @@ export function isAuthenticated() {
   
   const logado = localStorage.getItem(AUTH_KEY);
   const timestamp = localStorage.getItem(TIMESTAMP_KEY);
+  const userData = localStorage.getItem(USER_DATA_KEY);
   
-  if (logado !== 'true' || !timestamp) {
+  if (logado !== 'true' || !timestamp || !userData) {
     return false;
   }
   
@@ -33,12 +35,14 @@ export function isAuthenticated() {
 
 /**
  * Realiza o login do usuário
+ * @param {object} userData - Dados do usuário a serem armazenados
  */
-export function setAuth() {
+export function setAuth(userData) {
   if (typeof window === 'undefined') return;
   
   localStorage.setItem(AUTH_KEY, 'true');
   localStorage.setItem(TIMESTAMP_KEY, new Date().getTime().toString());
+  localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
 }
 
 /**
@@ -49,6 +53,39 @@ export function clearAuth() {
   
   localStorage.removeItem(AUTH_KEY);
   localStorage.removeItem(TIMESTAMP_KEY);
+  localStorage.removeItem(USER_DATA_KEY);
+}
+
+/**
+ * Obtém os dados do usuário logado
+ * @returns {object|null} Dados do usuário ou null se não estiver logado
+ */
+export function getUserData() {
+  if (typeof window === 'undefined') return null;
+  
+  const userData = localStorage.getItem(USER_DATA_KEY);
+  if (!userData) return null;
+  
+  try {
+    return JSON.parse(userData);
+  } catch (error) {
+    console.error('Erro ao parsear dados do usuário:', error);
+    return null;
+  }
+}
+
+/**
+ * Atualiza os dados do usuário logado
+ * @param {object} newData - Novos dados do usuário
+ */
+export function updateUserData(newData) {
+  if (typeof window === 'undefined') return;
+  
+  const currentData = getUserData();
+  if (!currentData) return;
+  
+  const updatedData = { ...currentData, ...newData };
+  localStorage.setItem(USER_DATA_KEY, JSON.stringify(updatedData));
 }
 
 /**
@@ -77,4 +114,23 @@ export function getSessionTimeLeft() {
   const horasPassadas = (agora - loginTime) / (1000 * 60 * 60);
   
   return Math.max(0, SESSION_DURATION_HOURS - horasPassadas);
+}
+
+/**
+ * Obtém informações formatadas da sessão
+ * @returns {object} Objeto com informações da sessão
+ */
+export function getSessionInfo() {
+  if (!isAuthenticated()) return null;
+  
+  const userData = getUserData();
+  const timeLeft = getSessionTimeLeft();
+  const timestamp = localStorage.getItem(TIMESTAMP_KEY);
+  
+  return {
+    usuario: userData,
+    horasRestantes: timeLeft.toFixed(1),
+    inicioSessao: new Date(parseInt(timestamp)).toLocaleString('pt-BR'),
+    expiracao: new Date(parseInt(timestamp) + SESSION_DURATION_HOURS * 60 * 60 * 1000).toLocaleString('pt-BR')
+  };
 }
