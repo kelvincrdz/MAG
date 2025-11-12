@@ -1,5 +1,5 @@
 // Camada de dados via Backend Python (FastAPI)
-import { apiFetch, getApiBase } from './api';
+import { apiFetch, getApiBase } from "./api";
 
 // Normaliza campos do backend para o formato usado no front
 function mapAudio(a) {
@@ -11,7 +11,10 @@ function mapAudio(a) {
     blobUrl: a.file_url ? `${base}${a.file_url}` : a.blobUrl,
     size: a.size,
     type: a.mime_type ?? a.type,
-    dateAdded: a.date_added ?? a.dateAdded
+    dateAdded: a.date_added ?? a.dateAdded,
+    internalPath: a.internal_path ?? a.internalPath,
+    role: a.role,
+    associationTag: a.association_tag ?? a.associationTag,
   };
 }
 
@@ -22,40 +25,42 @@ function mapMarkdown(m) {
     fileName: m.file_name ?? m.fileName,
     title: m.title,
     content: m.content,
-    dateAdded: m.date_added ?? m.dateAdded
+    dateAdded: m.date_added ?? m.dateAdded,
+    internalPath: m.internal_path ?? m.internalPath,
+    associationTag: m.association_tag ?? m.associationTag,
   };
 }
 
 export async function getAllAudioFiles() {
-  const data = await apiFetch('/files/audio');
+  const data = await apiFetch("/files/audio");
   return data.map(mapAudio);
 }
 
 export async function getAllMarkdownFiles() {
-  const data = await apiFetch('/files/markdown');
+  const data = await apiFetch("/files/markdown");
   return data.map(mapMarkdown);
 }
 
 export async function getAllProcessedMags() {
-  const data = await apiFetch('/mags');
+  const data = await apiFetch("/mags");
   // já retorna nos campos esperados pelo front
-  return data.map(m => ({
+  return data.map((m) => ({
     id: m.id,
     fileName: m.file_name ?? m.fileName,
     dateProcessed: m.date_processed ?? m.dateProcessed,
     fileSize: m.file_size ?? m.fileSize,
-    totalFiles: m.total_files ?? m.totalFiles
+    totalFiles: m.total_files ?? m.totalFiles,
   }));
 }
 
 export async function getAudioFilesByMagId(magId) {
   const list = await getAllAudioFiles();
-  return list.filter(a => a.magId === magId);
+  return list.filter((a) => a.magId === magId);
 }
 
 export async function getMarkdownFilesByMagId(magId) {
   const list = await getAllMarkdownFiles();
-  return list.filter(m => m.magId === magId);
+  return list.filter((m) => m.magId === magId);
 }
 
 export async function getRelationships(fileId) {
@@ -73,23 +78,23 @@ export async function getMarkdownFileById(id) {
 }
 
 export async function deleteAudioFile(id) {
-  await apiFetch(`/files/audio/${id}`, { method: 'DELETE' });
+  await apiFetch(`/files/audio/${id}`, { method: "DELETE" });
 }
 
 export async function deleteMarkdownFile(id) {
-  await apiFetch(`/files/markdown/${id}`, { method: 'DELETE' });
+  await apiFetch(`/files/markdown/${id}`, { method: "DELETE" });
 }
 
 export async function searchFiles(searchTerm) {
-  const q = encodeURIComponent(searchTerm || '');
+  const q = encodeURIComponent(searchTerm || "");
   const data = await apiFetch(`/files/search?term=${q}`);
   return {
     audios: (data.audios || []).map(mapAudio),
-    markdowns: (data.markdowns || []).map(mapMarkdown)
+    markdowns: (data.markdowns || []).map(mapMarkdown),
   };
 }
 
 export async function clearDatabase() {
   // Sem equivalente direto no backend; opcionalmente poderíamos expor uma rota admin.
-  console.warn('clearDatabase() não é suportado no backend.');
+  console.warn("clearDatabase() não é suportado no backend.");
 }

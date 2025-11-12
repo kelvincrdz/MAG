@@ -1,12 +1,7 @@
 // Processador de arquivos .mag (ZIP) para o MAG Player
 // Extrai e processa conteúdo de arquivos ZIP
 
-import {
-  saveAudioFile,
-  saveMarkdownFile,
-  saveProcessedMag,
-  createRelationship
-} from './database';
+// Processamento local (fallback) sem persistência no backend
 
 /**
  * Verifica se é um arquivo de áudio suportado
@@ -14,8 +9,16 @@ import {
  * @returns {boolean}
  */
 function isAudioFile(fileName) {
-  const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.webm'];
-  return audioExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
+  const audioExtensions = [
+    ".mp3",
+    ".wav",
+    ".ogg",
+    ".m4a",
+    ".aac",
+    ".flac",
+    ".webm",
+  ];
+  return audioExtensions.some((ext) => fileName.toLowerCase().endsWith(ext));
 }
 
 /**
@@ -24,7 +27,7 @@ function isAudioFile(fileName) {
  * @returns {boolean}
  */
 function isMarkdownFile(fileName) {
-  return fileName.toLowerCase().endsWith('.md');
+  return fileName.toLowerCase().endsWith(".md");
 }
 
 /**
@@ -34,14 +37,14 @@ function isMarkdownFile(fileName) {
  */
 function extractMarkdownTitle(content) {
   // Procura por # Título na primeira linha
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.startsWith('# ')) {
+    if (trimmed.startsWith("# ")) {
       return trimmed.substring(2).trim();
     }
   }
-  return '';
+  return "";
 }
 
 /**
@@ -53,15 +56,17 @@ function extractMarkdownTitle(content) {
 function detectFileReferences(content, availableFiles) {
   const references = [];
   const lowerContent = content.toLowerCase();
-  
-  availableFiles.forEach(fileName => {
-    const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
-    if (lowerContent.includes(fileName.toLowerCase()) || 
-        lowerContent.includes(nameWithoutExt.toLowerCase())) {
+
+  availableFiles.forEach((fileName) => {
+    const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+    if (
+      lowerContent.includes(fileName.toLowerCase()) ||
+      lowerContent.includes(nameWithoutExt.toLowerCase())
+    ) {
       references.push(fileName);
     }
   });
-  
+
   return references;
 }
 
@@ -72,111 +77,102 @@ function detectFileReferences(content, availableFiles) {
  */
 export async function processMagFile(file) {
   // Importa JSZip dinamicamente
-  const JSZip = (await import('jszip')).default;
-  
+  const JSZip = (await import("jszip")).default;
+
   try {
     const zip = await JSZip.loadAsync(file);
     const files = Object.keys(zip.files);
-    
-    // Primeiro, salva o .mag processado
-    const magId = await saveProcessedMag({
-      fileName: file.name,
-      fileSize: file.size,
-      totalFiles: files.length
-    });
-    
+
     const audioFiles = [];
     const markdownFiles = [];
     const allFileNames = [];
-    
-    // Identifica todos os arquivos
+    const baseToInternal = {};
+
+    // Identifica todos os arquivos (com caminho interno)
     for (const fileName of files) {
       const zipEntry = zip.files[fileName];
       if (zipEntry.dir) continue; // Ignora diretórios
-      
-      allFileNames.push(fileName);
+      const internal = fileName.replace("\\", "/");
+      baseToInternal[fileName.split("/").slice(-1)[0]] = internal;
+      allFileNames.push(internal);
     }
-    
+
+    // Prioriza Depoimento/Depoimento.mp3 como principal
+    const depoimentoPath = "Depoimento/Depoimento.mp3";
+
     // Processa arquivos de áudio
-    for (const fileName of files) {
-      const zipEntry = zip.files[fileName];
-      if (zipEntry.dir || !isAudioFile(fileName)) continue;
-      
+    for (const internal of allFileNames.filter((n) => isAudioFile(n))) {
+      const zipEntry = zip.files[internal];
       try {
-        const blob = await zipEntry.async('blob');
+        const blob = await zipEntry.async("blob");
         const url = URL.createObjectURL(blob);
-        
+        const role = internal === depoimentoPath ? "primary" : "attachment";
+        const associationTag =
+          role === "primary"
+            ? "depoimento"
+            : internal.toLowerCase().startsWith("arquivos/")
+            ? "arquivos"
+            : "outros";
         const audioData = {
-          magId,
-          fileName,
+          fileName: internal.split("/").slice(-1)[0],
+          internalPath: internal,
           blobUrl: url,
           size: blob.size,
-          type: blob.type || 'audio/mpeg'
+          type: blob.type || "audio/mpeg",
+          role,
+          associationTag,
         };
-        
-        const audioId = await saveAudioFile(audioData);
-        audioFiles.push({ id: audioId, ...audioData });
+        audioFiles.push(audioData);
       } catch (err) {
-        console.error(`Erro ao processar áudio ${fileName}:`, err);
+        console.error(`Erro ao processar áudio ${internal}:`, err);
       }
     }
-    
+
     // Processa arquivos Markdown
-    for (const fileName of files) {
-      const zipEntry = zip.files[fileName];
-      if (zipEntry.dir || !isMarkdownFile(fileName)) continue;
-      
+    for (const internal of allFileNames.filter((n) => isMarkdownFile(n))) {
+      const zipEntry = zip.files[internal];
       try {
-        const content = await zipEntry.async('text');
-        const title = extractMarkdownTitle(content) || fileName.replace('.md', '');
-        const references = detectFileReferences(content, allFileNames);
-        
+        const content = await zipEntry.async("text");
+        const title =
+          extractMarkdownTitle(content) ||
+          internal.split("/").slice(-1)[0].replace(".md", "");
+        const references = detectFileReferences(
+          content,
+          allFileNames.map((p) => p.split("/").slice(-1)[0])
+        );
+        const associationTag =
+          internal.toLowerCase() === "arquivos/arquivos.md"
+            ? "arquivos"
+            : "outros";
         const markdownData = {
-          magId,
-          fileName,
+          fileName: internal.split("/").slice(-1)[0],
+          internalPath: internal,
           title,
           content,
-          references
+          references,
+          associationTag,
         };
-        
-        const mdId = await saveMarkdownFile(markdownData);
-        markdownFiles.push({ id: mdId, ...markdownData });
+        markdownFiles.push(markdownData);
       } catch (err) {
-        console.error(`Erro ao processar markdown ${fileName}:`, err);
+        console.error(`Erro ao processar markdown ${internal}:`, err);
       }
     }
-    
-    // Cria relacionamentos baseados em referências
-    for (const md of markdownFiles) {
-      if (!md.references || md.references.length === 0) continue;
-      
-      for (const refFileName of md.references) {
-        // Procura áudio correspondente
-        const audio = audioFiles.find(a => a.fileName === refFileName);
-        if (audio) {
-          await createRelationship(md.id, 'markdown', audio.id, 'audio');
-        }
-        
-        // Procura outro markdown correspondente
-        const otherMd = markdownFiles.find(m => m.id !== md.id && m.fileName === refFileName);
-        if (otherMd) {
-          await createRelationship(md.id, 'markdown', otherMd.id, 'markdown');
-        }
-      }
-    }
-    
+
+    // Ordena áudios para que o principal venha primeiro
+    audioFiles.sort((a, b) => (b.role === "primary") - (a.role === "primary"));
+
     return {
       success: true,
-      magId,
+      magId: undefined,
       audioFiles,
       markdownFiles,
-      totalFiles: audioFiles.length + markdownFiles.length
+      totalFiles: audioFiles.length + markdownFiles.length,
     };
   } catch (error) {
-    console.error('Erro ao processar arquivo .mag:', error);
+    console.error("Erro ao processar arquivo .mag:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -187,16 +183,22 @@ export async function processMagFile(file) {
  * @returns {Promise<boolean>}
  */
 export async function validateMagFile(file) {
-  if (!file.name.toLowerCase().endsWith('.mag')) {
+  if (!file.name.toLowerCase().endsWith(".mag")) {
     return false;
   }
-  
+
   try {
-    const JSZip = (await import('jszip')).default;
+    const JSZip = (await import("jszip")).default;
     const zip = await JSZip.loadAsync(file);
-    return Object.keys(zip.files).length > 0;
+    const names = Object.keys(zip.files)
+      .filter((n) => !zip.files[n].dir)
+      .map((n) => n.replace("\\", "/"));
+    // Validação mínima: arquivo não-vazio e contém pelo menos Markdown de Arquivos e/ou Depoimento
+    const hasDepo = names.includes("Depoimento/Depoimento.mp3");
+    const hasMd = names.includes("Arquivos/Arquivos.md");
+    return names.length > 0 && (hasDepo || hasMd);
   } catch (error) {
-    console.error('Erro ao validar arquivo .mag:', error);
+    console.error("Erro ao validar arquivo .mag:", error);
     return false;
   }
 }
@@ -207,38 +209,38 @@ export async function validateMagFile(file) {
  * @returns {Promise<Object>} Informações do arquivo
  */
 export async function getMagFileInfo(file) {
-  const JSZip = (await import('jszip')).default;
-  
+  const JSZip = (await import("jszip")).default;
+
   try {
     const zip = await JSZip.loadAsync(file);
     const files = Object.keys(zip.files);
-    
+
     let audioCount = 0;
     let markdownCount = 0;
     let otherCount = 0;
-    
-    files.forEach(fileName => {
+
+    files.forEach((fileName) => {
       if (zip.files[fileName].dir) return;
-      
-      if (isAudioFile(fileName)) {
+      const internal = fileName.replace("\\", "/");
+      if (isAudioFile(internal)) {
         audioCount++;
-      } else if (isMarkdownFile(fileName)) {
+      } else if (isMarkdownFile(internal)) {
         markdownCount++;
       } else {
         otherCount++;
       }
     });
-    
+
     return {
       fileName: file.name,
       fileSize: file.size,
       totalFiles: files.length,
       audioCount,
       markdownCount,
-      otherCount
+      otherCount,
     };
   } catch (error) {
-    console.error('Erro ao obter informações do arquivo .mag:', error);
+    console.error("Erro ao obter informações do arquivo .mag:", error);
     return null;
   }
 }
@@ -250,12 +252,12 @@ export async function getMagFileInfo(file) {
  * @returns {Promise<Blob>} Blob do arquivo .mag criado
  */
 export async function createMagFile(files, magName) {
-  const JSZip = (await import('jszip')).default;
+  const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
-  
+
   for (const file of files) {
     zip.file(file.name, file);
   }
-  
-  return await zip.generateAsync({ type: 'blob' });
+
+  return await zip.generateAsync({ type: "blob" });
 }

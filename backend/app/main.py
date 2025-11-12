@@ -1,11 +1,11 @@
 from __future__ import annotations
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from pathlib import Path
 import shutil
 import zipfile
-import os
 
 from .config import settings
 from .database import Base, engine, get_db
@@ -25,6 +25,28 @@ app.add_middleware(
 
 # Criar tabelas
 Base.metadata.create_all(bind=engine)
+
+# Migrações simples (SQLite): adicionar colunas se não existirem
+def ensure_column(conn, table: str, column: str, ddl: str):
+    # Verifica colunas existentes
+    res = conn.execute(f"PRAGMA table_info('{table}')").fetchall()
+    cols = {row[1] for row in res}  # row[1] = nome da coluna
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
+@app.on_event("startup")
+def migrate():
+    # Adiciona association_tag nas tabelas de arquivos, se ausente
+    with engine.connect() as conn:
+        try:
+            ensure_column(conn, 'audio_files', 'association_tag', 'VARCHAR(50)')
+        except Exception:
+            pass
+        try:
+            ensure_column(conn, 'markdown_files', 'association_tag', 'VARCHAR(50)')
+        except Exception:
+            pass
 
 # Garantir diretórios de storage
 storage_dir = Path(settings.storage_dir)
@@ -114,7 +136,22 @@ def process_mag(file: UploadFile = File(...), db: Session = Depends(get_db), cur
     # Abre ZIP
     try:
         with zipfile.ZipFile(tmp_path, 'r') as zipf:
+            # Lista de arquivos internos (com caminhos) no ZIP
             all_files = [name for name in zipf.namelist() if not name.endswith('/')]
+
+            # Normaliza separadores para '/'
+            norm_files = [name.replace('\\', '/') for name in all_files]
+
+            # Regras de estrutura esperada
+            depoimento_path = 'Depoimento/Depoimento.mp3'
+            arquivos_md_path = 'Arquivos/Arquivos.md'
+            # Qualquer áudio dentro de Arquivos/
+            # arquivos_audio_paths não é necessário diretamente; mapearemos mais abaixo via base_to_internal
+
+            # Validação mínima: precisa ter Depoimento/Depoimento.mp3 e Arquivos/Arquivos.md
+            if depoimento_path not in norm_files or arquivos_md_path not in norm_files:
+                # Não bloqueia, mas marca aviso; ainda assim processa para retrocompatibilidade
+                pass
             mag = models.Mag(
                 file_name=file.filename,
                 file_size=tmp_path.stat().st_size,
@@ -124,12 +161,16 @@ def process_mag(file: UploadFile = File(...), db: Session = Depends(get_db), cur
             db.commit()
             db.refresh(mag)
 
-            audio_records = []
+            audio_records = []  # registros persistidos no banco
             markdown_records = []
+            # Mapear nome-base -> caminho interno para metadados de resposta
+            base_to_internal = {}
 
             # Primeiro extrair tudo que é necessário
             for name in all_files:
                 data = zipf.read(name)
+                internal = name.replace('\\', '/')
+                base_to_internal[Path(name).name] = internal
                 if is_audio(name):
                     # Persistir arquivo de áudio no storage/audio
                     safe_name = f"{mag.id}_{Path(name).name}".replace(' ', '_')
@@ -162,7 +203,7 @@ def process_mag(file: UploadFile = File(...), db: Session = Depends(get_db), cur
                     db.commit()
                     db.refresh(md)
                     markdown_records.append(md)
-            # Relacionamentos
+            # Relacionamentos genéricos por referências
             for md in markdown_records:
                 refs = detect_references(md.content, [a.file_name for a in audio_records] + [m.file_name for m in markdown_records])
                 for ref in refs:
@@ -177,13 +218,41 @@ def process_mag(file: UploadFile = File(...), db: Session = Depends(get_db), cur
                             db.add(rel)
                 db.commit()
 
+            # Regras específicas: anexar todos os áudios de Arquivos/ ao markdown Arquivos/Arquivos.md
+            arquivos_md_base = Path(arquivos_md_path).name
+            md_arquivos = next((m for m in markdown_records if m.file_name == arquivos_md_base), None)
+            if md_arquivos:
+                for a in audio_records:
+                    internal = base_to_internal.get(a.file_name, '')
+                    if internal.lower().startswith('arquivos/'):
+                        rel = models.Relationship(source_id=md_arquivos.id, source_type='markdown', target_id=a.id, target_type='audio')
+                        db.add(rel)
+                db.commit()
+
+            # Persistir association_tag calculada
+            depoimento_base = Path(depoimento_path).name
+            for a in audio_records:
+                internal = base_to_internal.get(a.file_name, a.file_name)
+                role = 'primary' if a.file_name == depoimento_base else 'attachment'
+                a.association_tag = 'depoimento' if role == 'primary' else ('arquivos' if internal.lower().startswith('arquivos/') else 'outros')
+            for m in markdown_records:
+                internal = base_to_internal.get(m.file_name, m.file_name)
+                m.association_tag = 'arquivos' if internal.lower() == 'arquivos/arquivos.md' else 'outros'
+            db.commit()
+
     finally:
         if tmp_path.exists():
             tmp_path.unlink()
 
     # Ajustar formato esperado pelo front: audioFiles com blobUrl apontando para file_url
+    # Monta saída enriquecida com papel (role), tag de associação e caminho interno
+    depoimento_base = Path('Depoimento/Depoimento.mp3').name
+    audios_db = db.query(models.AudioFile).filter(models.AudioFile.mag_id == mag.id).all()
     audios_out = []
-    for a in db.query(models.AudioFile).filter(models.AudioFile.mag_id == mag.id).all():
+    for a in audios_db:
+        internal = base_to_internal.get(a.file_name, a.file_name)
+        role = 'primary' if a.file_name == depoimento_base else 'attachment'
+        association_tag = a.association_tag or ('depoimento' if role == 'primary' else ('arquivos' if internal.lower().startswith('arquivos/') else 'outros'))
         audios_out.append({
             'id': a.id,
             'mag_id': a.mag_id,
@@ -192,8 +261,28 @@ def process_mag(file: UploadFile = File(...), db: Session = Depends(get_db), cur
             'mime_type': a.mime_type,
             'file_url': a.file_url,
             'date_added': a.date_added,
+            'internal_path': internal,
+            'role': role,
+            'association_tag': association_tag,
         })
-    mds_out = db.query(models.MarkdownFile).filter(models.MarkdownFile.mag_id == mag.id).all()
+    # Ordena para garantir que o primário venha primeiro
+    audios_out.sort(key=lambda x: 0 if x.get('role') == 'primary' else 1)
+
+    mds_db = db.query(models.MarkdownFile).filter(models.MarkdownFile.mag_id == mag.id).all()
+    mds_out = []
+    for m in mds_db:
+        internal = base_to_internal.get(m.file_name, m.file_name)
+        association_tag = m.association_tag or ('arquivos' if internal.lower() == 'arquivos/arquivos.md' else 'outros')
+        mds_out.append({
+            'id': m.id,
+            'mag_id': m.mag_id,
+            'file_name': m.file_name,
+            'title': m.title,
+            'content': m.content,
+            'date_added': m.date_added,
+            'internal_path': internal,
+            'association_tag': association_tag,
+        })
     return {
         'mag': mag,
         'audioFiles': audios_out,
@@ -270,7 +359,6 @@ def list_mags(db: Session = Depends(get_db), current=Depends(auth.get_current_us
     return db.query(models.Mag).order_by(models.Mag.date_processed.desc()).all()
 
 # Servir arquivos de áudio estáticos
-from fastapi.staticfiles import StaticFiles
 app.mount('/storage', StaticFiles(directory=storage_dir), name='storage')
 
 @app.get('/')

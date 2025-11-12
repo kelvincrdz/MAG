@@ -29,10 +29,12 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 5. Endpoints (documentação automática):
+
 - Swagger: http://localhost:8000/docs
 - Redoc: http://localhost:8000/redoc
 
 ## Principais rotas
+
 - POST `/auth/login` — login com `codigo` (retorna `access_token` + dados do usuário)
 - POST `/mags/process` — upload de arquivo `.mag` para processamento no servidor
 - GET `/files/audio` — listar áudios
@@ -47,6 +49,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 Arquivos de áudio são servidos estáticamente de `/storage/audio/{nome_gerado}`.
 
 ## Notas
+
 - Banco: `backend/data/app.db` (SQLite)
 - Usuários iniciais são carregados a partir dos códigos existentes no front (`utils/users.js`).
 - Autenticação via JWT (header `Authorization: Bearer <token>`).

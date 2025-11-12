@@ -1,8 +1,28 @@
 # Sistema de Arquivos .mag - Documentação
 
+## Estrutura recomendada do .mag (obrigatória para o player principal)
+
+Para melhor experiência e associação automática entre áudios e markdowns, utilize a seguinte estrutura dentro do ZIP:
+
+```
+Depoimento/Depoimento.mp3        <- Áudio principal reproduzido no player
+Arquivos/Arquivos.md             <- Documento associado (renderizado e com anexos)
+Arquivos/Arquivos.mp3            <- (Opcional) Áudio(s) adicional(is) anexado(s) ao markdown
+Arquivos/qualquer-*.mp3          <- (Opcional) Todo áudio dentro de Arquivos/ será anexado
+```
+
+Regras aplicadas pelo sistema:
+
+- O arquivo `Depoimento/Depoimento.mp3` é marcado como `role = primary` e será o primeiro a tocar no player.
+- O arquivo `Arquivos/Arquivos.md` recebe tag `association_tag = arquivos` e terá vínculos para todos os áudios presentes dentro da pasta `Arquivos/`.
+- Cada item retornado (áudio e markdown) possui metadados opcionais: `internal_path`, `role` (para áudios) e `association_tag`.
+
+Observação: Se o seu `.mag` não seguir exatamente essa estrutura, o sistema ainda tentará processar o conteúdo de forma genérica; porém, o comportamento de priorização do áudio principal e a associação automática podem não ocorrer.
+
 ## 📦 O que é um arquivo .mag?
 
 Um arquivo `.mag` é um arquivo ZIP que pode conter múltiplos tipos de conteúdo:
+
 - **Arquivos de áudio** (mp3, wav, ogg, m4a, aac, flac, webm)
 - **Arquivos Markdown** (.md) com documentação, letras, notas, etc.
 
@@ -11,11 +31,13 @@ Um arquivo `.mag` é um arquivo ZIP que pode conter múltiplos tipos de conteúd
 ### 1. Criando um arquivo .mag
 
 Para criar um arquivo .mag:
+
 1. Coloque seus arquivos de áudio e/ou markdown em uma pasta
 2. Compacte a pasta em um arquivo ZIP
 3. Renomeie a extensão de `.zip` para `.mag`
 
 **Exemplo de estrutura:**
+
 ```
 meu-album.mag (ZIP contendo:)
 ├── faixa01.mp3
@@ -39,6 +61,7 @@ meu-album.mag (ZIP contendo:)
 ### 3. Navegando entre faixas
 
 Se o arquivo `.mag` contém múltiplos áudios:
+
 - Use os botões **⏮️ Anterior** e **⏭️ Próxima** para navegar
 - O contador mostra: "Faixa X de Y"
 - Os controles de faixa aparecem automaticamente quando há múltiplos áudios
@@ -56,6 +79,7 @@ Se o arquivo `.mag` contém múltiplos áudios:
 ### 5. Visualizador de Markdown
 
 Para ver um arquivo markdown:
+
 1. Na página de **Arquivos**, encontre o markdown desejado
 2. Clique no botão **👁️ Visualizar**
 3. O visualizador mostra:
@@ -68,11 +92,13 @@ Para ver um arquivo markdown:
 O sistema detecta automaticamente relacionamentos entre arquivos:
 
 **Como funciona:**
+
 - Se um markdown menciona o nome de um arquivo de áudio, um vínculo é criado
 - Se um markdown referencia outro markdown, também há vínculo
 - Os vínculos aparecem na seção "Arquivos Relacionados" do visualizador
 
 **Exemplo:**
+
 ```markdown
 # Faixa 01 - Minha Música
 
@@ -82,12 +108,14 @@ Veja também: `notas-producao.md` para detalhes técnicos.
 ```
 
 Neste caso, o sistema criará vínculos entre:
+
 - `letra.md` ↔ `faixa01.mp3`
 - `letra.md` ↔ `notas-producao.md`
 
 ## 🗄️ Armazenamento
 
 Todos os arquivos são salvos localmente no navegador usando **IndexedDB**:
+
 - ✅ Não precisa de servidor
 - ✅ Funciona offline
 - ✅ Dados persistem entre sessões
@@ -102,6 +130,7 @@ Todos os arquivos são salvos localmente no navegador usando **IndexedDB**:
 ## 🎵 Funcionalidades do Player
 
 ### Controles disponíveis:
+
 - **📁 Abrir:** Carregar arquivo .mag
 - **⏮️ Anterior:** Faixa anterior (quando há múltiplos áudios)
 - **⏪ -10s:** Retroceder 10 segundos
@@ -113,6 +142,7 @@ Todos os arquivos são salvos localmente no navegador usando **IndexedDB**:
 - **🚪 Sair:** Fazer logout
 
 ### Atalhos de teclado:
+
 - **Espaço:** Play/Pause
 - **Seta Esquerda:** Retroceder 10s
 - **Seta Direita:** Avançar 10s
@@ -121,6 +151,7 @@ Todos os arquivos são salvos localmente no navegador usando **IndexedDB**:
 ## 📊 Estatísticas
 
 A página de Arquivos mostra:
+
 - Total de arquivos `.mag` processados
 - Quantidade de áudios salvos
 - Quantidade de markdowns salvos
@@ -128,6 +159,7 @@ A página de Arquivos mostra:
 ## 🔍 Busca
 
 A busca procura em:
+
 - Nomes de arquivos
 - Títulos de markdowns
 - Conteúdo completo dos markdowns
@@ -150,6 +182,7 @@ A busca procura em:
 ## 📝 Formato Markdown Suportado
 
 O visualizador suporta:
+
 - Títulos (# ## ###)
 - Listas (ordenadas e não-ordenadas)
 - Links
@@ -174,17 +207,21 @@ O visualizador suporta:
 ## 🐛 Solução de Problemas
 
 **Arquivo .mag não abre:**
+
 - Verifique se é um ZIP válido
 - Certifique-se que a extensão é exatamente `.mag`
 
 **Áudio não reproduz:**
+
 - Verifique o formato do arquivo
 - Alguns formatos podem não ser suportados pelo navegador
 
 **Markdowns não aparecem:**
+
 - Certifique-se que os arquivos têm extensão `.md`
 - Verifique se há conteúdo no arquivo
 
 **Vínculos não funcionam:**
+
 - Os nomes dos arquivos devem ser mencionados exatamente como estão
 - A detecção é case-insensitive (não diferencia maiúsculas/minúsculas)

@@ -1,8 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
-from typing import Optional
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
 
@@ -35,6 +34,7 @@ class AudioFile(Base):
     storage_path: Mapped[str] = mapped_column(String(500))
     file_url: Mapped[str] = mapped_column(String(500))
     date_added: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    association_tag: Mapped[str] = mapped_column(String(50), default=None, nullable=True)
 
 class MarkdownFile(Base):
     __tablename__ = "markdown_files"
@@ -44,6 +44,7 @@ class MarkdownFile(Base):
     title: Mapped[str] = mapped_column(String(255))
     content: Mapped[str] = mapped_column(Text)
     date_added: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    association_tag: Mapped[str] = mapped_column(String(50), default=None, nullable=True)
 
 class Relationship(Base):
     __tablename__ = "relationships"

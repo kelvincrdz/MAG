@@ -47,6 +47,10 @@ class AudioFileOut(BaseModel):
     mime_type: str
     file_url: str
     date_added: datetime
+    # Campos adicionais (não necessariamente persistidos) para enriquecer o front
+    internal_path: str | None = None
+    role: str | None = None  # 'primary' ou 'attachment'
+    association_tag: str | None = None
 
     class Config:
         from_attributes = True
@@ -58,6 +62,8 @@ class MarkdownFileOut(BaseModel):
     title: str
     content: str
     date_added: datetime
+    internal_path: str | None = None
+    association_tag: str | None = None
 
     class Config:
         from_attributes = True
