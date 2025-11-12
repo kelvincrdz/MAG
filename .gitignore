@@ -2,43 +2,330 @@
 node_modules/
 /.pnp
 .pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Testing
 /coverage
+*.lcov
+.nyc_output/
+coverage.xml
+htmlcov/
+.pytest_cache/
+.coverage
 
 # Next.js
 /.next/
 /out/
+/.vercel/
+.next/
+docs/cache/
+docs/static/
+docs/server/
+docs/trace
 
-# Production
+# Backend specific
+backend/__pycache__/
+backend/app/__pycache__/
+backend/data/
+backend/storage/
+.venv/
+
+# Old code (development artifacts)
+old\ code/
+
+# Production builds
 /build
+/dist
 
-# Misc
-.DS_Store
-*.pem
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.whl
 
-# Debug
+# Python virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.ENV/
+pipenv/
+.pipenv/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Poetry
+poetry.lock
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.envrc
+config.ini
+secrets.json
+
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
-# Local env files
-.env*.local
-.env
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# Vercel
-.vercel
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# Snowpack dependency directory
+web_modules/
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+*.d.ts.map
 
-# IDE
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.test
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
+*.pem
 
-# OS
+# JetBrains IDEs
+*.iml
+.idea/
+.idea_modules/
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+Session.vim
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Media files (uncomment if you don't want to track them)
+# *.mp3
+# *.mp4
+# *.avi
+# *.mkv
+# *.wav
+# *.flac
+# *.ogg
+# *.m4a
+# *.webm
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archive files
+*.tar
+*.zip
+*.rar
+*.7z
+*.gz
+*.bz2
+
+# Security
+.htaccess
+.htpasswd
+private.key
+*.csr
+*.key
+*.crt
+*.p12
+*.pem
+
+# Vercel
+.vercel
+
+# Sentry
+.sentryclirc
+
+# Docker
+Dockerfile.prod
+docker-compose.override.yml
+.dockerignore
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Kubernetes
+*.kubeconfig
+
+# Local development
+local_settings.py
+.local/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Editor directories and files
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
