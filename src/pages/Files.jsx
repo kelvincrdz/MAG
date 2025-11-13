@@ -218,7 +218,17 @@ export default function Files() {
                       <div className="file-actions">
                         <button
                           className="btn-play"
-                          onClick={() => navigate("/player")}
+                          onClick={() =>
+                            navigate("/player", {
+                              state: {
+                                play: {
+                                  internalPath: audio.internalPath,
+                                  fileName: audio.fileName,
+                                },
+                                source: "files",
+                              },
+                            })
+                          }
                           title="Tocar no player"
                         >
                           <i className="fas fa-play"></i>
@@ -313,8 +323,19 @@ export default function Files() {
           markdown={selectedMd}
           onClose={() => setSelectedMd(null)}
           onNavigate={(file) => {
-            if (file.type === "markdown") setSelectedMd(file);
-            else navigate("/player");
+            if (file.type === "markdown") {
+              setSelectedMd(file);
+            } else {
+              navigate("/player", {
+                state: {
+                  play: {
+                    internalPath: file.internalPath,
+                    fileName: file.fileName,
+                  },
+                  source: "markdown-viewer",
+                },
+              });
+            }
           }}
         />
       )}

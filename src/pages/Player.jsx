@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   isAuthenticated,
   getUserData,
@@ -15,6 +15,7 @@ import {
 
 export default function Player() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [usuario, setUsuario] = useState(null);
   const [mostrarInfo, setMostrarInfo] = useState(false);
@@ -42,6 +43,7 @@ export default function Player() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [current, setCurrent] = useState("00:00");
   const [total, setTotal] = useState("00:00");
+  const lastHandledPlayRef = useRef(null);
 
   useEffect(() => {
     document.title = "MAG Player - Reprodutor";
@@ -171,6 +173,36 @@ export default function Player() {
     cassetteRef.current?.classList.remove("playing");
     updateTapeProgress(0);
   }
+
+  // Tocar áudio solicitado via navegação a partir da página de Arquivos/MarkdownViewer
+  useEffect(() => {
+    const request = location.state?.play;
+    if (!request) return;
+    const key = request.internalPath || request.fileName;
+    if (!key || lastHandledPlayRef.current === key) return;
+
+    // Se já temos uma lista carregada nesta sessão, tentar localizar pelo internalPath/fileName
+    if (currentAudioList && currentAudioList.length > 0) {
+      const idx = currentAudioList.findIndex(
+        (a) =>
+          a.internalPath === request.internalPath ||
+          a.fileName === request.fileName
+      );
+      if (idx >= 0) {
+        setCurrentAudioIndex(idx);
+        loadAudio(currentAudioList[idx]);
+        setTimeout(() => audioRef.current?.play(), 100);
+        lastHandledPlayRef.current = key;
+        return;
+      }
+    }
+
+    // Caso não haja lista ou não encontrado: avisar o usuário
+    alert(
+      "Não foi possível tocar este áudio automaticamente. Abra o arquivo .mag no Player nesta sessão e tente novamente."
+    );
+    lastHandledPlayRef.current = key;
+  }, [location.state, currentAudioList]);
 
   function playNext() {
     if (currentAudioList.length === 0) return;

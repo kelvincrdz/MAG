@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Player from "./pages/Player";
 import Files from "./pages/Files";
-import { isAuthenticated } from "../mag-next/utils/auth";
+import { isAuthenticated } from "./utils/auth";
 
 function ProtectedRoute({ children }) {
   if (!isAuthenticated()) {

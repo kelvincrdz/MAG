@@ -1,6 +1,6 @@
 # MAG Player (Vite + React)
 
-Aplicação 100% frontend (sem backend Python) para processar e tocar arquivos .mag diretamente no navegador.
+Aplicação 100% frontend para processar e tocar arquivos .mag diretamente no navegador (sem qualquer backend Python ou Next.js ativo).
 
 ## Como rodar
 
@@ -20,14 +20,14 @@ npm run build
 npm run preview
 ```
 
-## O que mudou nesta migração
+## O que foi consolidado
 
-- Removido Next.js e o backend FastAPI (Python) do fluxo de execução.
-- Criado projeto Vite + React (SPA) com rotas: `/` (Login), `/player` (Player), `/files` (Arquivos).
-- Processamento de `.mag` é feito no cliente via `utils/magProcessor.js` (JSZip), sem upload.
-- Dados de lista/relacionamentos são lidos do armazenamento local (`localStorage`) via `utils/database.js`.
-- Autenticação local por código (utils/users.js) com sessão em `localStorage` (mag-next/utils/auth.js).
-- PWA básico mantido (manifest e sw.js) via public/ e registro simples no `src/main.jsx`.
+- Removidos completamente: backend FastAPI (Python) e arquivos Next.js (pages/, next.config.js, mag-next/).
+- SPA Vite + React com rotas: `/` (Login), `/player` (Player), `/files` (Arquivos).
+- Processamento de `.mag` inteiramente no cliente via `utils/magProcessor.js` (JSZip) – sem upload para servidor.
+- Persistência local (audios/markdowns/mags) em `localStorage` via `utils/database.js`.
+- Autenticação local por código em `src/utils/auth.js` e `utils/users.js`.
+- PWA básico (manifest + service worker) usando arquivos em `public/`.
 
 ## Estrutura principal
 
@@ -49,7 +49,38 @@ O teste existente de processamento local foi mantido:
 npm run test:mag
 ```
 
-## Observações
+## Deploy (Vercel)
 
-- Pastas e arquivos do backend Python e do Next.js foram preservados apenas como histórico; não são usados pelo build Vite.
-- Se desejar, você pode removê-los no futuro para enxugar o repositório.
+`vercel.json` já configura:
+
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+Passos:
+
+1. Conecte repositório no Vercel.
+2. Build Command: `npm run build` | Output Directory: `dist` (detectado automaticamente).
+3. Nenhuma variável de ambiente obrigatória (totalmente offline/local).
+4. Após o deploy, qualquer rota SPA (`/player`, `/files`) reescreve para `index.html`.
+
+## Segurança / Limitações
+
+- Sem backend: exclusão real e multiusuário não existem; tudo é local ao navegador.
+- Tokens ou JWT não são usados; autenticação é apenas uma verificação de código fixo.
+- Para multiusuário real e persistência compartilhada você precisará reintroduzir um backend (Node/Express ou FastAPI).
+
+## Próximos Passos Sugeridos
+
+- Adicionar testes para componentes principais (Player, Files) usando Vitest/React Testing Library.
+- Implementar opção de exportar histórico local (JSON) e importar em outro navegador.
+- Otimizar bundle dividindo código do markdown viewer em chunk separado.
+
+---
+
+Todos os artefatos legados foram eliminados neste estágio – o repositório agora reflete apenas a aplicação Vite.
