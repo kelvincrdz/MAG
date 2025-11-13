@@ -1,7 +1,8 @@
 {
-  "outputDirectory": "docs",
   "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": null
+  "framework": "vite",
+  "ignoreCommand": "echo Using Vercel default ignore mechanism"
 }
