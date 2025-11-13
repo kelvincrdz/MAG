@@ -10,6 +10,7 @@ import {
   deleteMarkdownFile,
   searchFiles,
   getRelationships,
+  getLocalFilesSnapshot,
 } from "../utils/database";
 import MarkdownViewer from "../components/MarkdownViewer";
 
@@ -24,6 +25,7 @@ export default function FilesPage() {
   const [carregando, setCarregando] = useState(true);
   const [selectedMd, setSelectedMd] = useState(null);
   const [relationships, setRelationships] = useState({});
+  const [usandoFallback, setUsandoFallback] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -68,6 +70,40 @@ export default function FilesPage() {
       setRelationships(rels);
     } catch (error) {
       console.error("Erro ao carregar arquivos:", error);
+      // Fallback local
+      const snap = getLocalFilesSnapshot();
+      if (snap) {
+        setUsandoFallback(true);
+        setAudios(
+          snap.audios.sort(
+            (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
+          )
+        );
+        setMarkdowns(
+          snap.markdowns.sort(
+            (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
+          )
+        );
+        setMags(
+          snap.mags.sort(
+            (a, b) => new Date(b.dateProcessed) - new Date(a.dateProcessed)
+          )
+        );
+        // Relacionamentos a partir de references (quando houver)
+        const rels = {};
+        for (const md of snap.markdowns) {
+          const refs = md.references || [];
+          if (refs.length > 0) {
+            rels[md.id] = refs.map((ref) => ({
+              // Estrutura similar ao backend (parcial)
+              source_id: md.id,
+              source_type: "markdown",
+              target_name: ref,
+            }));
+          }
+        }
+        setRelationships(rels);
+      }
     } finally {
       setCarregando(false);
     }
@@ -224,6 +260,12 @@ export default function FilesPage() {
           </div>
         ) : (
           <>
+            {usandoFallback && (
+              <div className="warning-banner">
+                <i className="fas fa-plug"></i> Exibindo dados locais do último
+                processamento (backend indisponível ou sem login válido)
+              </div>
+            )}
             {audiosFiltrados.length > 0 && (
               <div className="files-section">
                 <h2>

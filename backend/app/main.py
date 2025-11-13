@@ -47,6 +47,7 @@ def migrate():
             ensure_column(conn, 'markdown_files', 'association_tag', 'VARCHAR(50)')
         except Exception:
             pass
+        # Tabela de histórico criada via create_all; sem migração de colunas aqui
 
 # Garantir diretórios de storage
 storage_dir = Path(settings.storage_dir)
@@ -115,7 +116,7 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=400, detail='Código incorreto')
     token = auth.create_access_token({'codigo': user.codigo})
-    return schemas.Token(access_token=token, user=user)
+    return schemas.Token(access_token=token, user=user)  # type: ignore[arg-type]
 
 # Users
 @app.get('/users/me', response_model=schemas.UserOut)
@@ -125,7 +126,7 @@ def me(current=Depends(auth.get_current_user)):
 # Processar .mag
 @app.post('/mags/process', response_model=schemas.MagProcessResult)
 def process_mag(file: UploadFile = File(...), db: Session = Depends(get_db), current=Depends(auth.get_current_user)):
-    if not file.filename.lower().endswith('.mag'):
+    if not (file.filename and file.filename.lower().endswith('.mag')):
         raise HTTPException(status_code=400, detail='Arquivo deve ser .mag')
 
     # Salva temporariamente
@@ -347,7 +348,7 @@ def search_files(term: str = Query(""), db: Session = Depends(get_db), current=D
             (models.MarkdownFile.title.ilike(like)) |
             (models.MarkdownFile.content.ilike(like))
         ).all()
-    return schemas.SearchResult(audios=audios, markdowns=markdowns)
+    return schemas.SearchResult(audios=audios, markdowns=markdowns)  # type: ignore[arg-type]
 
 @app.get('/relationships/{source_id}', response_model=list[schemas.RelationshipOut])
 def get_relationships(source_id: int, db: Session = Depends(get_db), current=Depends(auth.get_current_user)):
@@ -357,6 +358,26 @@ def get_relationships(source_id: int, db: Session = Depends(get_db), current=Dep
 @app.get('/mags', response_model=list[schemas.MagOut])
 def list_mags(db: Session = Depends(get_db), current=Depends(auth.get_current_user)):
     return db.query(models.Mag).order_by(models.Mag.date_processed.desc()).all()
+
+# Histórico de processamentos (local ou backend)
+@app.post('/mags/history', response_model=schemas.MagHistoryOut)
+def add_mag_history(entry: schemas.MagHistoryCreate, db: Session = Depends(get_db), current=Depends(auth.get_current_user)):
+    hist = models.MagProcessingHistory(
+        mag_id=entry.mag_id,
+        file_name=entry.file_name,
+        audio_count=entry.audio_count,
+        markdown_count=entry.markdown_count,
+        total_files=entry.total_files,
+        origin=entry.origin or 'local'
+    )
+    db.add(hist)
+    db.commit()
+    db.refresh(hist)
+    return hist
+
+@app.get('/mags/history', response_model=list[schemas.MagHistoryOut])
+def list_mag_history(limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db), current=Depends(auth.get_current_user)):
+    return db.query(models.MagProcessingHistory).order_by(models.MagProcessingHistory.saved_at.desc()).limit(limit).all()
 
 # Servir arquivos de áudio estáticos
 app.mount('/storage', StaticFiles(directory=storage_dir), name='storage')

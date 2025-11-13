@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel
 
 # User
@@ -87,3 +87,24 @@ class MagProcessResult(BaseModel):
     mag: MagOut
     audioFiles: List[AudioFileOut]
     markdownFiles: List[MarkdownFileOut]
+
+class MagHistoryCreate(BaseModel):
+    mag_id: int | None = None
+    file_name: str | None = None
+    audio_count: int
+    markdown_count: int
+    total_files: int
+    origin: str = "local"
+
+class MagHistoryOut(BaseModel):
+    id: int
+    mag_id: int | None
+    file_name: str | None
+    audio_count: int
+    markdown_count: int
+    total_files: int
+    origin: str
+    saved_at: datetime
+
+    class Config:
+        from_attributes = True

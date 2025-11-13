@@ -11,6 +11,7 @@ import {
   processMagFile,
   validateMagFile,
   getMagFileInfo,
+  saveProcessedMag,
 } from "../utils/magProcessor";
 import { apiUpload, getApiBase } from "../utils/api";
 
@@ -61,7 +62,9 @@ export default function PlayerPage() {
     const onLoaded = () => setTotal(formatTime(audio.duration));
     const onTime = () => {
       if (!isDragging) {
-        const percent = (audio.currentTime / audio.duration) * 100;
+        const duration = audio.duration;
+        if (!duration || !Number.isFinite(duration)) return;
+        const percent = (audio.currentTime / duration) * 100;
         if (progressRef.current)
           progressRef.current.style.width = percent + "%";
         setCurrent(formatTime(audio.currentTime));
@@ -149,6 +152,18 @@ export default function PlayerPage() {
           setCurrentAudioIndex(0);
           loadAudio(audioList[0]);
         }
+        // Persistir histórico backend
+        try {
+          saveProcessedMag({
+            success: true,
+            magId: magResp.mag?.id,
+            totalFiles: magResp.mag?.total_files,
+            audioFiles: audioList,
+            markdownFiles: magResp.markdownFiles || [],
+          });
+        } catch (e) {
+          console.warn("Falha ao salvar histórico local (backend):", e);
+        }
         alert(
           `✅ Arquivo processado no servidor!\n\n📁 ${info.fileName}\n🎵 ${
             audioList.length
@@ -172,6 +187,12 @@ export default function PlayerPage() {
           setCurrentAudioList(result.audioFiles);
           setCurrentAudioIndex(0);
           loadAudio(result.audioFiles[0]);
+          // Persistir histórico local
+          try {
+            saveProcessedMag(result);
+          } catch (e) {
+            console.warn("Falha ao salvar histórico local (fallback):", e);
+          }
           alert(
             `✅ Arquivo processado localmente!\n\n` +
               `📁 ${info.fileName}\n` +
@@ -338,6 +359,7 @@ export default function PlayerPage() {
 
   function updateTapeProgress(percent) {
     if (percent == null) return;
+    if (!Number.isFinite(percent)) percent = 0;
     const leftP = 1 - percent / 100;
     const rightP = percent / 100;
     // Left

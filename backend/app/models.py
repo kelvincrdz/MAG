@@ -54,3 +54,17 @@ class Relationship(Base):
     target_id: Mapped[int] = mapped_column(Integer)
     target_type: Mapped[str] = mapped_column(String(50))  # 'audio' ou 'markdown'
     date_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class MagProcessingHistory(Base):
+    """Histórico de processamentos (local ou backend) para auditoria leve.
+    Armazena apenas contagens e nome, não arquivos.
+    """
+    __tablename__ = "mag_processing_history"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mag_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # pode não existir (processamento local não persistido)
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    audio_count: Mapped[int] = mapped_column(Integer)
+    markdown_count: Mapped[int] = mapped_column(Integer)
+    total_files: Mapped[int] = mapped_column(Integer)
+    origin: Mapped[str] = mapped_column(String(30), default="local")  # 'local' ou 'backend'
+    saved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
