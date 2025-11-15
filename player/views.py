@@ -125,17 +125,32 @@ def upload_mag(request):
         messages.error(request, 'Arquivo inválido. Envie um .mag')
         return redirect('player')
 
-    base_output = Path(settings.MEDIA_ROOT) / 'packages'
-    base_output.mkdir(parents=True, exist_ok=True)
-
     try:
+        # Garante que MEDIA_ROOT existe
+        media_root = Path(settings.MEDIA_ROOT)
+        media_root.mkdir(parents=True, exist_ok=True)
+        
+        base_output = media_root / 'packages'
+        base_output.mkdir(parents=True, exist_ok=True)
+
         pkg_id, out_dir = _safe_extract_mag(mag_file, base_output)
+        
+        # Redireciona para o player com o pacote
+        return redirect('player_with_package', pkg_id=pkg_id)
+        
     except zipfile.BadZipFile:
         messages.error(request, 'Arquivo corrompido ou não é um ZIP válido.')
         return redirect('player')
-
-    # Redireciona para o player com o pacote
-    return redirect('player_with_package', pkg_id=pkg_id)
+    except PermissionError:
+        messages.error(request, 'Erro de permissão ao salvar o arquivo. Tente novamente.')
+        return redirect('player')
+    except Exception as e:
+        # Log do erro para debug
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Erro ao fazer upload: {str(e)}', exc_info=True)
+        messages.error(request, f'Erro ao processar o arquivo: {str(e)}')
+        return redirect('player')
 
 
 def player_with_package(request, pkg_id: str):

@@ -159,17 +159,16 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
 
+# Define MEDIA_ROOT sempre (necessário para extração temporária de arquivos)
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_URL = '/media/'
+
 # Verifica se as credenciais do Cloudinary estão configuradas (produção)
 if all([os.environ.get('CLOUDINARY_CLOUD_NAME'), 
         os.environ.get('CLOUDINARY_API_KEY'), 
         os.environ.get('CLOUDINARY_API_SECRET')]):
-    # Produção: Usa Cloudinary
+    # Produção: Usa Cloudinary para storage persistente
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    MEDIA_URL = '/media/'
-else:
-    # Desenvolvimento: Usa sistema de arquivos local
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -179,3 +178,30 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Session settings
 SESSION_COOKIE_AGE = 86400  # 1 dia
 SESSION_SAVE_EVERY_REQUEST = True
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'player': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
