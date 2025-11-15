@@ -1,9 +1,19 @@
 import Head from 'next/head';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import { isAuthenticated, getUserData, clearAuth, getSessionInfo } from '../mag-next/utils/auth';
+import { processMagFile, validateMagFile, getMagFileInfo } from '../utils/magProcessor';
+import { apiUpload, getApiBase } from '../utils/api';
 
 export default function PlayerPage() {
   const router = useRouter();
+  
+  const [usuario, setUsuario] = useState(null);
+  const [mostrarInfo, setMostrarInfo] = useState(false);
+  const [processando, setProcessando] = useState(false);
+  const [magInfo, setMagInfo] = useState(null);
+  const [currentAudioList, setCurrentAudioList] = useState([]);
+  const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
 
   const fileInputRef = useRef(null);
   const audioRef = useRef(null);
@@ -27,8 +37,12 @@ export default function PlayerPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const logado = localStorage.getItem('magPlayerLogado') === 'true';
-    if (!logado) router.replace('/');
+    if (!isAuthenticated()) {
+      router.replace('/');
+    } else {
+      const userData = getUserData();
+      setUsuario(userData);
+    }
   }, [router]);
 
   useEffect(() => {
@@ -71,25 +85,125 @@ export default function PlayerPage() {
     fileInputRef.current?.click();
   }
 
-  function onFileChange(e) {
+  async function onFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    
     if (!file.name.toLowerCase().endsWith('.mag')) {
       alert('Por favor, selecione um arquivo .mag');
       return;
     }
-    const url = URL.createObjectURL(file);
+    
+    setProcessando(true);
+    setMagInfo(null);
+    
+    try {
+      // Valida o arquivo
+      const isValid = await validateMagFile(file);
+      if (!isValid) {
+        alert('Arquivo .mag inválido ou corrompido');
+        setProcessando(false);
+        return;
+      }
+      
+      // Obtém informações básicas
+      const info = await getMagFileInfo(file);
+      setMagInfo(info);
+      
+      // Envia para o backend (se token existir) senão processa localmente
+      let processedViaBackend = false;
+      try {
+        const form = new FormData();
+        form.append('file', file, file.name);
+        const magResp = await apiUpload('/mags/process', form);
+        processedViaBackend = true;
+        const base = getApiBase();
+        const audioList = (magResp.audioFiles || []).map(a => ({
+          id: a.id,
+          magId: a.mag_id,
+          fileName: a.file_name,
+          blobUrl: `${base}${a.file_url}`,
+          size: a.size,
+          type: a.mime_type,
+          dateAdded: a.date_added,
+        }));
+        if (audioList.length > 0) {
+          setCurrentAudioList(audioList);
+          setCurrentAudioIndex(0);
+          loadAudio(audioList[0]);
+        }
+        alert(`✅ Arquivo processado no servidor!\n\n📁 ${info.fileName}\n🎵 ${audioList.length} áudio(s)\n📝 ${(magResp.markdownFiles || []).length} markdown(s)`);
+      } catch (err) {
+        console.warn('Falha ao processar no backend, usando processamento local:', err.message);
+      }
+
+      if (!processedViaBackend) {
+        const result = await processMagFile(file);
+        if (!result.success) {
+          alert(`Erro ao processar arquivo: ${result.error}`);
+          setProcessando(false);
+          return;
+        }
+        if (result.audioFiles && result.audioFiles.length > 0) {
+          setCurrentAudioList(result.audioFiles);
+          setCurrentAudioIndex(0);
+          loadAudio(result.audioFiles[0]);
+          alert(`✅ Arquivo processado localmente!\n\n` +
+                `📁 ${info.fileName}\n` +
+                `🎵 ${result.audioFiles.length} áudio(s)\n` +
+                `📝 ${result.markdownFiles.length} markdown(s)`);
+        } else {
+          alert(`Arquivo processado localmente com sucesso!\nNenhum áudio encontrado.`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Erro ao processar .mag:', error);
+      alert(`Erro ao processar arquivo: ${error.message}`);
+    } finally {
+      setProcessando(false);
+    }
+  }
+  
+  function loadAudio(audioData) {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.src = url;
+    
+    audio.src = audioData.blobUrl;
     audio.load();
-    if (songTitleRef.current) songTitleRef.current.textContent = file.name;
+    
+    if (songTitleRef.current) {
+      songTitleRef.current.textContent = audioData.fileName;
+    }
+    
     if (progressRef.current) progressRef.current.style.width = '0%';
     setCurrent('00:00');
     setTotal('00:00');
     setIsPlaying(false);
     cassetteRef.current?.classList.remove('playing');
     updateTapeProgress(0);
+  }
+  
+  function playNext() {
+    if (currentAudioList.length === 0) return;
+    const nextIndex = (currentAudioIndex + 1) % currentAudioList.length;
+    setCurrentAudioIndex(nextIndex);
+    loadAudio(currentAudioList[nextIndex]);
+    // Auto-play
+    setTimeout(() => {
+      audioRef.current?.play();
+    }, 100);
+  }
+  
+  function playPrevious() {
+    if (currentAudioList.length === 0) return;
+    const prevIndex = currentAudioIndex === 0 ? currentAudioList.length - 1 : currentAudioIndex - 1;
+    setCurrentAudioIndex(prevIndex);
+    loadAudio(currentAudioList[prevIndex]);
+    // Auto-play
+    setTimeout(() => {
+      audioRef.current?.play();
+    }, 100);
   }
 
   function togglePlay() {
@@ -279,19 +393,35 @@ export default function PlayerPage() {
         <div className="controls-panel">
           <input type="file" ref={fileInputRef} id="fileInput" accept=".mag" style={{ display: 'none' }} onChange={onFileChange} />
           <div className="main-controls">
-            <button className="minimal-btn open-btn" title="Abrir arquivo" onClick={openFile}>
+            <button className="minimal-btn open-btn" title="Abrir arquivo" onClick={openFile} disabled={processando}>
               <i className="fas fa-folder-open"></i>
             </button>
+            {currentAudioList.length > 1 && (
+              <button className="minimal-btn prev-track-btn" title="Faixa Anterior" onClick={playPrevious}>
+                <i className="fas fa-step-backward"></i>
+              </button>
+            )}
             <button className="minimal-btn rewind-btn" title="Retroceder 10s" onClick={rewind10}>
               <i className="fas fa-backward-step"></i>
             </button>
-            <button className={`minimal-btn play-btn ${isPlaying ? 'pause' : ''}`} title="Play/Pause" onClick={togglePlay}>
-              <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+            <button className={`minimal-btn play-btn ${isPlaying ? 'pause' : ''}`} title="Play/Pause" onClick={togglePlay} disabled={processando}>
+              <i className={`fas ${processando ? 'fa-spinner fa-spin' : isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
             </button>
             <button className="minimal-btn forward-btn" title="Avançar 10s" onClick={forward10}>
               <i className="fas fa-forward-step"></i>
             </button>
+            {currentAudioList.length > 1 && (
+              <button className="minimal-btn next-track-btn" title="Próxima Faixa" onClick={playNext}>
+                <i className="fas fa-step-forward"></i>
+              </button>
+            )}
           </div>
+          
+          {currentAudioList.length > 1 && (
+            <div className="playlist-info">
+              <span>Faixa {currentAudioIndex + 1} de {currentAudioList.length}</span>
+            </div>
+          )}
 
           <div className="progress-section">
             <div className="time-display">
@@ -316,11 +446,55 @@ export default function PlayerPage() {
           </div>
 
           <div className="bottom-controls">
-            <button className="minimal-btn logout-btn" title="Sair" onClick={() => { localStorage.removeItem('magPlayerLogado'); router.push('/'); }}>
+            <button 
+              className="minimal-btn files-btn" 
+              title="Ver Arquivos" 
+              onClick={() => router.push('/files')}
+            >
+              <i className="fas fa-folder"></i>
+            </button>
+            <button 
+              className="minimal-btn info-btn" 
+              title="Informações do Usuário" 
+              onClick={() => setMostrarInfo(!mostrarInfo)}
+            >
+              <i className="fas fa-user-circle"></i>
+            </button>
+            <button className="minimal-btn logout-btn" title="Sair" onClick={() => { clearAuth(); router.push('/'); }}>
               <i className="fas fa-sign-out-alt"></i>
             </button>
           </div>
         </div>
+        
+        {mostrarInfo && usuario && (
+          <div className="user-info-panel">
+            <div className="user-info-content">
+              <button className="close-info" onClick={() => setMostrarInfo(false)}>×</button>
+              <h3>👤 Informações do Usuário</h3>
+              <div className="info-item">
+                <strong>Nome:</strong> {usuario.nome}
+              </div>
+              <div className="info-item">
+                <strong>Email:</strong> {usuario.email}
+              </div>
+              <div className="info-item">
+                <strong>Departamento:</strong> {usuario.departamento}
+              </div>
+              <div className="info-item">
+                <strong>Perfil:</strong> {usuario.perfil}
+              </div>
+              <div className="info-item">
+                <strong>Código:</strong> {usuario.codigo}
+              </div>
+              <div className="session-info">
+                <p style={{ fontSize: '0.85em', color: '#666', marginTop: '12px' }}>
+                  Sessão válida por {getSessionInfo()?.horasRestantes}h
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <audio ref={audioRef} preload="none" />
       </div>
     </div>

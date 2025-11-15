@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"utils\\\\magProcessor.js -> jszip\":{\"id\":\"utils\\\\magProcessor.js -> jszip\",\"files\":[\"static/chunks/node_modules_jszip_dist_jszip_min_js.js\"]}}"
