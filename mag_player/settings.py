@@ -24,10 +24,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-mag-player-2024-secret-key-change-in-production'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# Configure para produção: ['nivelkdev.pythonanywhere.com']
-ALLOWED_HOSTS = []
+# ALLOWED_HOSTS - adicione domínios conforme necessário
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'nivelkdev.pythonanywhere.com',  # PythonAnywhere
+]
 
 
 # Application definition
@@ -119,11 +123,15 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-# Para PythonAnywhere: descomente a linha abaixo em produção
-# STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Em desenvolvimento, usa STATICFILES_DIRS
+# Em produção (PythonAnywhere), usa STATIC_ROOT
+if DEBUG:
+    STATICFILES_DIRS = [
+        BASE_DIR / 'static',
+    ]
+else:
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files
 MEDIA_URL = '/media/'
