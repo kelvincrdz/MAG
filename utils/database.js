@@ -168,3 +168,62 @@ export function getLocalFilesSnapshot() {
   ];
   return { audios, markdowns, mags };
 }
+
+// --- Remote snapshot caching (para acesso posterior sem reprocessar .mag) ---
+export function cacheRemoteSnapshot({
+  audios = [],
+  markdowns = [],
+  mags = [],
+}) {
+  if (typeof window === "undefined") return;
+  try {
+    const payload = {
+      savedAt: new Date().toISOString(),
+      audios: audios.map((a) => ({
+        id: a.id,
+        magId: a.magId,
+        fileName: a.fileName,
+        blobUrl: a.blobUrl, // URL do servidor
+        size: a.size,
+        type: a.type,
+        dateAdded: a.dateAdded,
+        internalPath: a.internalPath,
+        role: a.role,
+        associationTag: a.associationTag,
+      })),
+      markdowns: markdowns.map((m) => ({
+        id: m.id,
+        magId: m.magId,
+        fileName: m.fileName,
+        title: m.title,
+        content: m.content?.substring(0, 5000) || "", // evita explodir localStorage
+        dateAdded: m.dateAdded,
+        internalPath: m.internalPath,
+        associationTag: m.associationTag,
+      })),
+      mags: mags.map((g) => ({
+        id: g.id,
+        fileName: g.fileName,
+        dateProcessed: g.dateProcessed,
+        fileSize: g.fileSize,
+        totalFiles: g.totalFiles,
+      })),
+    };
+    localStorage.setItem("remoteSnapshot", JSON.stringify(payload));
+  } catch (e) {
+    console.warn("Falha ao salvar remoteSnapshot", e);
+  }
+}
+
+export function getCachedRemoteSnapshot() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("remoteSnapshot");
+    if (!raw) return null;
+    const snap = JSON.parse(raw);
+    if (!snap || !snap.audios) return null;
+    return snap;
+  } catch {
+    return null;
+  }
+}

@@ -2,7 +2,14 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isAuthenticated, getUserData } from "../utils/auth";
 import MarkdownViewer from "../../components/MarkdownViewer.jsx";
-import { getLocalFilesSnapshot } from "../../utils/database.js";
+import {
+  getLocalFilesSnapshot,
+  getAllAudioFiles,
+  getAllMarkdownFiles,
+  getAllProcessedMags,
+  cacheRemoteSnapshot,
+} from "../../utils/database.js";
+import { getApiBase } from "../../utils/api.js";
 
 export default function Files() {
   const navigate = useNavigate();
@@ -28,37 +35,81 @@ export default function Files() {
     }
   }, [navigate]);
 
-  function carregarArquivosLocais() {
+  async function carregarArquivosLocais() {
     setCarregando(true);
-    const snap = getLocalFilesSnapshot();
-    if (snap) {
-      setUsandoFallback(true);
-      const aud = snap.audios.sort(
-        (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
-      );
-      const mds = snap.markdowns.sort(
-        (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
-      );
-      const mgs = snap.mags.sort(
-        (a, b) => new Date(b.dateProcessed) - new Date(a.dateProcessed)
-      );
-      setAudios(aud);
-      setMarkdowns(mds);
-      setMags(mgs);
-      const rels = {};
-      for (const md of mds) {
-        const refs = md.references || [];
-        if (refs.length > 0) {
-          rels[md.id] = refs.map((ref) => ({
-            source_id: md.id,
-            source_type: "markdown",
-            target_name: ref,
-          }));
+    const hasBackend = !!getApiBase();
+    try {
+      if (hasBackend) {
+        // Busca remota
+        const [aud, mds, mgs] = await Promise.all([
+          getAllAudioFiles(),
+          getAllMarkdownFiles(),
+          getAllProcessedMags(),
+        ]);
+        setUsandoFallback(false);
+        const audSorted = aud.sort(
+          (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
+        );
+        const mdsSorted = mds.sort(
+          (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
+        );
+        const mgsSorted = mgs.sort(
+          (a, b) => new Date(b.dateProcessed) - new Date(a.dateProcessed)
+        );
+        setAudios(audSorted);
+        setMarkdowns(mdsSorted);
+        setMags(mgsSorted);
+        cacheRemoteSnapshot({
+          audios: audSorted,
+          markdowns: mdsSorted,
+          mags: mgsSorted,
+        });
+        const rels = {};
+        for (const md of mdsSorted) {
+          const refs = md.references || [];
+          if (refs.length > 0) {
+            rels[md.id] = refs.map((ref) => ({
+              source_id: md.id,
+              source_type: "markdown",
+              target_name: ref,
+            }));
+          }
+        }
+        setRelationships(rels);
+      } else {
+        // Fallback local
+        const snap = getLocalFilesSnapshot();
+        if (snap) {
+          setUsandoFallback(true);
+          const aud = snap.audios.sort(
+            (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
+          );
+          const mds = snap.markdowns.sort(
+            (a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)
+          );
+          const mgs = snap.mags.sort(
+            (a, b) => new Date(b.dateProcessed) - new Date(a.dateProcessed)
+          );
+          setAudios(aud);
+          setMarkdowns(mds);
+          setMags(mgs);
+          const rels = {};
+          for (const md of mds) {
+            const refs = md.references || [];
+            if (refs.length > 0) {
+              rels[md.id] = refs.map((ref) => ({
+                source_id: md.id,
+                source_type: "markdown",
+                target_name: ref,
+              }));
+            }
+          }
+          setRelationships(rels);
         }
       }
-      setRelationships(rels);
+    } finally {
+      setCarregando(false);
     }
-    setCarregando(false);
   }
 
   function formatFileSize(bytes) {
@@ -105,7 +156,13 @@ export default function Files() {
   }
 
   async function handleDelete() {
-    alert("Exclusão não está disponível no modo local (sem backend).");
+    if (usandoFallback) {
+      alert("Exclusão não está disponível no modo local (sem backend).");
+    } else {
+      alert(
+        "Funcionalidade de exclusão remota ainda não implementada nesta UI."
+      );
+    }
   }
 
   const audiosFiltrados =
@@ -188,10 +245,15 @@ export default function Files() {
           </div>
         ) : (
           <>
-            {usandoFallback && (
+            {usandoFallback ? (
               <div className="warning-banner">
-                <i className="fas fa-plug"></i> Exibindo dados locais do último
-                processamento
+                <i className="fas fa-plug"></i> Modo local: exibindo dados do
+                último processamento (.mag não persistido)
+              </div>
+            ) : (
+              <div className="info-banner">
+                <i className="fas fa-server"></i> Dados carregados do servidor
+                (cache salvo para uso offline parcial)
               </div>
             )}
             {audiosFiltrados.length > 0 && (

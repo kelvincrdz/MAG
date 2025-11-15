@@ -1,17 +1,17 @@
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-const fs = require("fs");
-const multer = require("multer");
-const AdmZip = require("adm-zip");
-const mime = require("mime-types");
-const { db, init, seedUsers } = require("./db");
+import express from "express";
+import cors from "cors";
+import path from "path";
+import fs from "fs";
+import multer from "multer";
+import AdmZip from "adm-zip";
+import mime from "mime-types";
+import * as db from "./jsondb.js";
 
 const PORT = process.env.PORT || 8000;
 const APP_NAME = process.env.APP_NAME || "MAG Node Server";
 
-init();
-seedUsers();
+db.init();
+db.seedUsers();
 
 const app = express();
 app.use(cors());
@@ -19,7 +19,9 @@ app.use(express.json({ limit: "20mb" }));
 
 const storageDir = path.resolve(process.cwd(), "storage");
 const audioDir = path.join(storageDir, "audio");
+const markdownDir = path.join(storageDir, "markdown");
 if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
+if (!fs.existsSync(markdownDir)) fs.mkdirSync(markdownDir, { recursive: true });
 
 app.use("/storage", express.static(storageDir));
 
@@ -59,9 +61,7 @@ app.get("/", (req, res) => {
 app.post("/auth/login", (req, res) => {
   const { codigo } = req.body || {};
   if (!codigo) return res.status(400).json({ detail: "Código requerido" });
-  const row = db
-    .prepare("SELECT * FROM users WHERE codigo = ? AND is_active = 1")
-    .get(String(codigo).toUpperCase().trim());
+  const row = db.getUserByCodigo(codigo);
   if (!row) return res.status(400).json({ detail: "Código incorreto" });
   // Token simbólico (sem verificação) apenas como placeholder
   const token = Buffer.from(
@@ -83,28 +83,14 @@ app.post("/mags/process", upload.single("file"), (req, res) => {
   const zip = new AdmZip(file.buffer);
   const entries = zip.getEntries().filter((e) => !e.isDirectory);
   const allNames = entries.map((e) => e.entryName.replace(/\\/g, "/"));
-
-  const magIns = db.prepare(
-    "INSERT INTO mags (file_name, file_size, total_files) VALUES (?,?,?)"
-  );
-  const magId = magIns.run(
-    file.originalname,
-    file.size,
-    entries.length
-  ).lastInsertRowid;
+  const mag = db.insertMag(file.originalname, file.size, entries.length);
+  const magId = mag.id;
 
   const baseToInternal = {};
   for (const e of entries) {
     const internal = e.entryName.replace(/\\/g, "/");
     baseToInternal[path.basename(internal)] = internal;
   }
-
-  const audioIns = db.prepare(
-    "INSERT INTO audio_files (mag_id, file_name, size, mime_type, storage_path, file_url, association_tag) VALUES (?,?,?,?,?,?,?)"
-  );
-  const mdIns = db.prepare(
-    "INSERT INTO markdown_files (mag_id, file_name, title, content, association_tag) VALUES (?,?,?,?,?)"
-  );
 
   const audios = [];
   const mds = [];
@@ -133,7 +119,7 @@ app.post("/mags/process", upload.single("file"), (req, res) => {
           ? "arquivos"
           : "outros";
       const mimeType = mime.lookup(base) || "audio/mpeg";
-      const rowId = audioIns.run(
+      const row = db.insertAudio(
         magId,
         base,
         buf.length,
@@ -141,42 +127,41 @@ app.post("/mags/process", upload.single("file"), (req, res) => {
         rel,
         `/storage/${rel}`,
         tag
-      ).lastInsertRowid;
+      );
       audios.push({
-        id: rowId,
-        mag_id: magId,
-        file_name: base,
-        size: buf.length,
-        mime_type: mimeType,
-        file_url: `/storage/${rel}`,
+        ...row,
         internal_path: internal,
         role,
-        association_tag: tag,
       });
     } else if (isMarkdown(internal)) {
       const text = e.getData().toString("utf8");
       const title = extractMarkdownTitle(text) || path.parse(base).name;
-      const tag =
-        internal.toLowerCase() === "arquivos/arquivos.md"
-          ? "arquivos"
-          : "outros";
-      const rowId = mdIns.run(magId, base, title, text, tag).lastInsertRowid;
-      mds.push({
-        id: rowId,
-        mag_id: magId,
-        file_name: base,
+      const tag = internal.toLowerCase().startsWith("arquivos/")
+        ? "arquivos"
+        : "outros";
+      // Persist markdown file to storage/markdown
+      const safeName = `${magId}_${base}`.replace(/\s+/g, "_");
+      const outPath = path.join(markdownDir, safeName);
+      fs.writeFileSync(outPath, text, "utf8");
+      const rel = path.relative(storageDir, outPath).split(path.sep).join("/");
+      const fileUrl = `/storage/${rel}`;
+      const row = db.insertMarkdown(
+        magId,
+        base,
         title,
-        content: text,
+        text,
+        tag,
+        rel,
+        fileUrl
+      );
+      mds.push({
+        ...row,
         internal_path: internal,
-        association_tag: tag,
       });
     }
   }
 
   // relationships by references
-  const relIns = db.prepare(
-    "INSERT INTO relationships (source_id, source_type, target_id, target_type) VALUES (?,?,?,?)"
-  );
   for (const m of mds) {
     const refs = detectReferences(m.content, [
       ...audios.map((a) => a.file_name),
@@ -185,12 +170,12 @@ app.post("/mags/process", upload.single("file"), (req, res) => {
     for (const ref of refs) {
       const tgtA = audios.find((a) => a.file_name === ref);
       if (tgtA) {
-        relIns.run(m.id, "markdown", tgtA.id, "audio");
+        db.insertRelationship(m.id, "markdown", tgtA.id, "audio");
         continue;
       }
       const tgtM = mds.find((mm) => mm.file_name === ref && mm.id !== m.id);
       if (tgtM) {
-        relIns.run(m.id, "markdown", tgtM.id, "markdown");
+        db.insertRelationship(m.id, "markdown", tgtM.id, "markdown");
       }
     }
   }
@@ -198,54 +183,42 @@ app.post("/mags/process", upload.single("file"), (req, res) => {
   // return payload
   audios.sort((x, y) => (y.role === "primary") - (x.role === "primary"));
   res.json({
-    mag: db.prepare("SELECT * FROM mags WHERE id = ?").get(magId),
+    mag,
     audioFiles: audios,
     markdownFiles: mds,
   });
 });
 
 app.get("/files/audio", (req, res) => {
-  const rows = db
-    .prepare("SELECT * FROM audio_files ORDER BY date_added DESC")
-    .all();
+  const rows = db.getAllAudios();
   res.json(rows);
 });
 app.get("/files/markdown", (req, res) => {
-  const rows = db
-    .prepare("SELECT * FROM markdown_files ORDER BY date_added DESC")
-    .all();
+  const rows = db.getAllMarkdowns();
   res.json(rows);
 });
 app.get("/files/audio/:id", (req, res) => {
-  const row = db
-    .prepare("SELECT * FROM audio_files WHERE id = ?")
-    .get(req.params.id);
+  const row = db.getAudioById(req.params.id);
   if (!row) return res.status(404).json({ detail: "Áudio não encontrado" });
   res.json(row);
 });
 app.get("/files/markdown/:id", (req, res) => {
-  const row = db
-    .prepare("SELECT * FROM markdown_files WHERE id = ?")
-    .get(req.params.id);
+  const row = db.getMarkdownById(req.params.id);
   if (!row) return res.status(404).json({ detail: "Markdown não encontrado" });
   res.json(row);
 });
 app.delete("/files/audio/:id", (req, res) => {
-  const row = db
-    .prepare("SELECT * FROM audio_files WHERE id = ?")
-    .get(req.params.id);
+  const row = db.getAudioById(req.params.id);
   if (!row) return res.status(404).json({ detail: "Áudio não encontrado" });
   const filePath = path.join(storageDir, row.storage_path);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  db.prepare("DELETE FROM audio_files WHERE id = ?").run(req.params.id);
+  db.deleteAudio(req.params.id);
   res.json({ status: "ok" });
 });
 app.delete("/files/markdown/:id", (req, res) => {
-  const row = db
-    .prepare("SELECT * FROM markdown_files WHERE id = ?")
-    .get(req.params.id);
+  const row = db.getMarkdownById(req.params.id);
   if (!row) return res.status(404).json({ detail: "Markdown não encontrado" });
-  db.prepare("DELETE FROM markdown_files WHERE id = ?").run(req.params.id);
+  db.deleteMarkdown(req.params.id);
   res.json({ status: "ok" });
 });
 
@@ -253,52 +226,36 @@ app.get("/files/search", (req, res) => {
   const term = String(req.query.term || "").trim();
   if (!term) {
     return res.json({
-      audios: db.prepare("SELECT * FROM audio_files").all(),
-      markdowns: db.prepare("SELECT * FROM markdown_files").all(),
+      audios: db.getAllAudios(),
+      markdowns: db.getAllMarkdowns(),
     });
   }
-  const like = `%${term}%`;
-  const audios = db
-    .prepare("SELECT * FROM audio_files WHERE file_name LIKE ?")
-    .all(like);
-  const markdowns = db
-    .prepare(
-      "SELECT * FROM markdown_files WHERE file_name LIKE ? OR title LIKE ? OR content LIKE ?"
-    )
-    .all(like, like, like);
+  const audios = db.searchAudiosByFileName(term);
+  const markdowns = db.searchMarkdowns(term);
   res.json({ audios, markdowns });
 });
 
 app.get("/relationships/:source_id", (req, res) => {
-  const rows = db
-    .prepare("SELECT * FROM relationships WHERE source_id = ?")
-    .all(req.params.source_id);
+  const rows = db.getRelationshipsForSource(req.params.source_id);
   res.json(rows);
 });
 
 app.get("/mags", (req, res) => {
-  const rows = db
-    .prepare("SELECT * FROM mags ORDER BY date_processed DESC")
-    .all();
+  const rows = db.getAllMags();
   res.json(rows);
 });
 
 app.post("/mags/history", (req, res) => {
   const e = req.body || {};
-  const st = db.prepare(
-    "INSERT INTO mag_processing_history (mag_id, file_name, audio_count, markdown_count, total_files, origin) VALUES (?,?,?,?,?,?)"
-  );
-  const id = st.run(
-    e.mag_id || null,
-    e.file_name || null,
-    e.audio_count || 0,
-    e.markdown_count || 0,
-    e.total_files || 0,
-    e.origin || "local"
-  ).lastInsertRowid;
-  res.json(
-    db.prepare("SELECT * FROM mag_processing_history WHERE id = ?").get(id)
-  );
+  const row = db.insertMagHistory({
+    mag_id: e.mag_id ?? null,
+    file_name: e.file_name ?? null,
+    audio_count: e.audio_count ?? 0,
+    markdown_count: e.markdown_count ?? 0,
+    total_files: e.total_files ?? 0,
+    origin: e.origin ?? "local",
+  });
+  res.json(row);
 });
 
 app.get("/mags/history", (req, res) => {
@@ -306,11 +263,7 @@ app.get("/mags/history", (req, res) => {
     1,
     Math.min(500, parseInt(req.query.limit || "100", 10))
   );
-  const rows = db
-    .prepare(
-      "SELECT * FROM mag_processing_history ORDER BY saved_at DESC LIMIT ?"
-    )
-    .all(limit);
+  const rows = db.getMagHistory(limit);
   res.json(rows);
 });
 

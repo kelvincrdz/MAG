@@ -12,6 +12,8 @@ import {
   getMagFileInfo,
   saveProcessedMag,
 } from "../../utils/magProcessor";
+import { getAllAudioFiles } from "../../utils/database.js";
+import { getApiBase } from "../../utils/api.js";
 
 export default function Player() {
   const navigate = useNavigate();
@@ -136,16 +138,9 @@ export default function Player() {
         } catch (e) {
           console.warn("Falha ao salvar histórico local:", e);
         }
-        alert(
-          `✅ Arquivo processado localmente!\n\n` +
-            `📁 ${info.fileName}\n` +
-            `🎵 ${result.audioFiles.length} áudio(s)\n` +
-            `📝 ${result.markdownFiles.length} markdown(s)`
-        );
+        // Removido alerta de sucesso para experiência mais silenciosa
       } else {
-        alert(
-          `Arquivo processado localmente com sucesso!\nNenhum áudio encontrado.`
-        );
+        // Sem áudio, apenas mantém estado sem alert
       }
     } catch (error) {
       console.error("Erro ao processar .mag:", error);
@@ -197,11 +192,40 @@ export default function Player() {
       }
     }
 
-    // Caso não haja lista ou não encontrado: avisar o usuário
-    alert(
-      "Não foi possível tocar este áudio automaticamente. Abra o arquivo .mag no Player nesta sessão e tente novamente."
-    );
-    lastHandledPlayRef.current = key;
+    // Tentativa adicional: buscar no backend se disponível
+    const hasBackend = !!getApiBase();
+    if (hasBackend) {
+      (async () => {
+        try {
+          const remoteAudios = await getAllAudioFiles();
+          const found = remoteAudios.find(
+            (a) =>
+              a.internalPath === request.internalPath ||
+              a.fileName === request.fileName
+          );
+          if (found) {
+            setCurrentAudioList([found]);
+            setCurrentAudioIndex(0);
+            loadAudio(found);
+            setTimeout(() => audioRef.current?.play(), 100);
+            lastHandledPlayRef.current = key;
+            return;
+          }
+        } catch (e) {
+          console.warn("Falha ao buscar áudio remoto", e);
+        }
+        alert(
+          "Não foi possível tocar este áudio automaticamente. Abra o arquivo .mag no Player nesta sessão e tente novamente."
+        );
+        lastHandledPlayRef.current = key;
+      })();
+    } else {
+      // Caso não haja backend
+      alert(
+        "Não foi possível tocar este áudio automaticamente. Abra o arquivo .mag no Player nesta sessão e tente novamente."
+      );
+      lastHandledPlayRef.current = key;
+    }
   }, [location.state, currentAudioList]);
 
   function playNext() {
