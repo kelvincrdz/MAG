@@ -27,7 +27,110 @@ ENV/
 
 # PyCharm
 .idea/
+*.swp
+*.swo
+*~
 
 # OS
-.DS_Store
 Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Media files (uncomment if you don't want to track them)
+# *.mp3
+# *.mp4
+# *.avi
+# *.mkv
+# *.wav
+# *.flac
+# *.ogg
+# *.m4a
+# *.webm
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archive files
+*.tar
+*.zip
+*.rar
+*.7z
+*.gz
+*.bz2
+
+# Security
+.htaccess
+.htpasswd
+private.key
+*.csr
+*.key
+*.crt
+*.p12
+*.pem
+
+# Vercel
+.vercel
+
+# Sentry
+.sentryclirc
+
+# Docker
+Dockerfile.prod
+docker-compose.override.yml
+.dockerignore
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Kubernetes
+*.kubeconfig
+
+# Local development
+local_settings.py
+.local/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Editor directories and files
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets

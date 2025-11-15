@@ -1,72 +1,86 @@
-# MAG Player Django
+# MAG Player (Vite + React)
 
-## Descrição
+Aplicação 100% frontend para processar e tocar arquivos .mag diretamente no navegador (sem qualquer backend Python ou Next.js ativo).
 
-Site Django com player de áudio estilo cassette vintage com animação das fitas.
+## Como rodar
 
-## Instalação
+```pwsh
+# instalar dependências
+npm install
 
-1. Crie um ambiente virtual:
+# rodar em desenvolvimento
+npm run dev
 
-```bash
-python -m venv venv
+# abrir: http://localhost:5173
+
+# build de produção (gera pasta dist/)
+npm run build
+
+# pré-visualizar o build
+npm run preview
 ```
 
-2. Ative o ambiente virtual:
+## O que foi consolidado
 
-```bash
-# Windows PowerShell
-.\venv\Scripts\Activate.ps1
+- Removidos completamente: backend FastAPI (Python) e arquivos Next.js (pages/, next.config.js, mag-next/).
+- SPA Vite + React com rotas: `/` (Login), `/player` (Player), `/files` (Arquivos).
+- Processamento de `.mag` inteiramente no cliente via `utils/magProcessor.js` (JSZip) – sem upload para servidor.
+- Persistência local (audios/markdowns/mags) em `localStorage` via `utils/database.js`.
+- Autenticação local por código em `src/utils/auth.js` e `utils/users.js`.
+- PWA básico (manifest + service worker) usando arquivos em `public/`.
 
-# Windows CMD
-venv\Scripts\activate.bat
+## Estrutura principal
+
+- `src/` código da SPA (React + Vite)
+  - `src/pages/Login.jsx`
+  - `src/pages/Player.jsx`
+  - `src/pages/Files.jsx`
+  - `src/App.jsx` (rotas)
+  - `src/main.jsx` (bootstrap)
+- `components/MarkdownViewer.jsx` (visualização de markdown)
+- `utils/` (processamento .mag, auth e dados locais)
+- `styles/globals.css` (estilos)
+
+## Testes
+
+O teste existente de processamento local foi mantido:
+
+```pwsh
+npm run test:mag
 ```
 
-3. Instale as dependências:
+## Deploy (Vercel)
 
-```bash
-pip install -r requirements.txt
+`vercel.json` já configura:
+
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
 ```
 
-4. Execute as migrações:
+Passos:
 
-```bash
-python manage.py migrate
-```
+1. Conecte repositório no Vercel.
+2. Build Command: `npm run build` | Output Directory: `dist` (detectado automaticamente).
+3. Nenhuma variável de ambiente obrigatória (totalmente offline/local).
+4. Após o deploy, qualquer rota SPA (`/player`, `/files`) reescreve para `index.html`.
 
-5. Inicie o servidor:
+## Segurança / Limitações
 
-```bash
-python manage.py runserver
-```
+- Sem backend: exclusão real e multiusuário não existem; tudo é local ao navegador.
+- Tokens ou JWT não são usados; autenticação é apenas uma verificação de código fixo.
+- Para multiusuário real e persistência compartilhada você precisará reintroduzir um backend (Node/Express ou FastAPI).
 
-6. Acesse no navegador:
+## Próximos Passos Sugeridos
 
-```
-http://localhost:8000
-```
+- Adicionar testes para componentes principais (Player, Files) usando Vitest/React Testing Library.
+- Implementar opção de exportar histórico local (JSON) e importar em outro navegador.
+- Otimizar bundle dividindo código do markdown viewer em chunk separado.
 
-## Código de Acesso Padrão
+---
 
-**Código:** ORC/DDAE-11.25
-
-## Recursos
-
-- Player de áudio com animação de cassette vintage
-- Suporte a arquivos .mag
-- Animação sincronizada das fitas com o progresso do áudio
-- Interface moderna com estilo retro
-- Sistema de login com código de acesso
-- Controles de reprodução (play/pause, avançar, retroceder)
-
-## Estrutura do Projeto
-
-```
-MAG_django/
-├── mag_player/          # Configurações do projeto Django
-├── player/              # App principal
-├── static/              # Arquivos estáticos (CSS, JS)
-├── templates/           # Templates HTML
-├── media/               # Arquivos de mídia (uploads)
-└── manage.py           # Script de gerenciamento Django
-```
+Todos os artefatos legados foram eliminados neste estágio – o repositório agora reflete apenas a aplicação Vite.

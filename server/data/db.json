@@ -1,0 +1,59 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "codigo": "ORC/DDAE-11.25",
+      "nome": "Magno Oliveira",
+      "email": "magno@ifce.edu.br",
+      "departamento": "DDAE",
+      "perfil": "Professor",
+      "created_at": "2025-11-13T13:29:52.149Z",
+      "is_active": 1
+    },
+    {
+      "id": 2,
+      "codigo": "ADM/COORD-01.25",
+      "nome": "Maria Silva",
+      "email": "maria.silva@ifce.edu.br",
+      "departamento": "Coordenação",
+      "perfil": "Coordenador",
+      "created_at": "2025-11-13T13:29:52.150Z",
+      "is_active": 1
+    },
+    {
+      "id": 3,
+      "codigo": "TEC/LAB-05.25",
+      "nome": "João Santos",
+      "email": "joao.santos@ifce.edu.br",
+      "departamento": "Laboratório",
+      "perfil": "Técnico",
+      "created_at": "2025-11-13T13:29:52.150Z",
+      "is_active": 1
+    },
+    {
+      "id": 4,
+      "codigo": "EST/INFO-10.25",
+      "nome": "Ana Costa",
+      "email": "ana.costa@aluno.ifce.edu.br",
+      "departamento": "Informática",
+      "perfil": "Estudante",
+      "created_at": "2025-11-13T13:29:52.150Z",
+      "is_active": 1
+    },
+    {
+      "id": 5,
+      "codigo": "DOC/BIB-03.25",
+      "nome": "Carlos Mendes",
+      "email": "carlos.mendes@ifce.edu.br",
+      "departamento": "Biblioteca",
+      "perfil": "Bibliotecário",
+      "created_at": "2025-11-13T13:29:52.150Z",
+      "is_active": 1
+    }
+  ],
+  "mags": [],
+  "audio_files": [],
+  "markdown_files": [],
+  "relationships": [],
+  "mag_processing_history": []
+}
