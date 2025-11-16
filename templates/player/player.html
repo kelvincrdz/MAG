@@ -12,7 +12,7 @@
 </head>
 
 <body>
-    <div class="player-container">
+    <div class="player-wrapper">
         <div class="cassette-player">
             <div class="cassette-container">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 810 513.5" class="cassette-svg">
@@ -127,7 +127,6 @@
             </div>
 
             <div class="controls-panel">
-
                 <div class="main-controls">
                     <button id="openBtn" class="minimal-btn open-btn" title="Abrir arquivo">
                         <i class="fas fa-folder-open"></i>
@@ -144,6 +143,10 @@
                     <button id="forwardBtn" class="minimal-btn forward-btn" disabled title="Avançar 10s">
                         <i class="fas fa-forward-step"></i>
                     </button>
+
+                    <button id="logoutBtn" class="minimal-btn logout-btn" title="Sair">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
                 </div>
 
                 <div class="progress-section">
@@ -157,64 +160,21 @@
                         <span id="duration">00:00</span>
                     </div>
                 </div>
-
-                <div class="bottom-controls">
-                    {% if pkg_id %}
-                    <a href="{% url 'arquivos' pkg_id %}" class="minimal-btn" title="Arquivos"
-                        style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-                        <i class="fas fa-file"></i>
-                    </a>
-                    {% endif %}
-                    <button id="logoutBtn" class="minimal-btn logout-btn" title="Sair">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
-                </div>
             </div>
 
             <audio id="audioPlayer" preload="none"></audio>
         </div>
 
-        <div class="local-mode-bar"
-            style="max-width:650px; width:100%; margin:12px auto; color:#cfe3f1; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
-            <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" id="localModeToggle" checked>
-                Modo local (não enviar arquivo)
-            </label>
-            <div id="localTrackContainer" style="display:none; margin-top:10px;">
-                <label for="trackSelect" style="color:#cfe3f1; font-size:13px; margin-right:8px;">Selecionar
-                    faixa:</label>
-                <select id="trackSelect"
-                    style="width:100%; background:#0f1316; color:#cfe3f1; border:1px solid #3a4e5e; padding:8px 10px; border-radius:8px;"></select>
-            </div>
-            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-                <button id="clearLocalBtn" type="button" class="minimal-link" style="border:none; cursor:pointer;">
-                    <i class="fas fa-trash"></i> Limpar pacote salvo
-                </button>
-            </div>
-        </div>
-
-        <div id="localMarkdowns" class="markdown-body"
-            style="display:none; max-width:650px; width:100%; margin:0 auto 16px; background: rgba(15,19,22,0.9); border:1px solid #2a2e32; border-radius:12px; padding:20px;">
-        </div>
+        <input type="checkbox" id="localModeToggle" checked style="display:none;">
+        <select id="trackSelect" style="display:none;"></select>
+        <div id="localMarkdowns" style="display:none;"></div>
+        <button id="clearLocalBtn" type="button" style="display:none;"></button>
 
         <form id="uploadForm" action="{% url 'upload_mag' %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="file" id="fileInput" name="magFile" accept=".mag,.zip" style="display:none;">
         </form>
     </div>
-
-    {% if initial and initial.audio_url %}
-    <div id="initialData" data-audio-url="{{ initial.audio_url }}" data-title="{{ initial.title }}"
-        style="display:none;"></div>
-    {% endif %}
-
-    {% if tracks %}
-    <div id="tracksData" style="display:none;">
-        {% for track in tracks %}
-        <div class="track-item" data-url="{{ track.url }}" data-name="{{ track.name }}"></div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
     <div id="uploadOverlay">
         <div class="spinner"></div>

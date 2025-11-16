@@ -77,37 +77,29 @@ if (fileInput) {
       showToast("Arquivo muito grande. Limite máximo: 200MB.", "error");
       return;
     }
-    const form = document.getElementById("uploadForm");
-    const useLocal = localModeToggle ? localModeToggle.checked : true;
-    if (useLocal) {
-      processLocalMag(file)
-        .then(() => {
-          // Salva o pacote localmente após processar
-          return cacheStorePackage(file)
-            .then(() => {
-              showToast(
-                `Pacote salvo localmente: ${file.name || "arquivo"}`,
-                "success"
-              );
-            })
-            .catch(() => {});
-        })
-        .catch((err) => {
-          console.error("Falha ao processar arquivo local:", err);
-          showToast(
-            "Falha ao ler o arquivo local. Verifique o conteúdo do .mag.",
-            "error"
-          );
-          showUploadOverlay(false);
-          if (openBtn) openBtn.disabled = false;
-        });
-    } else if (form) {
-      try {
-        if (openBtn) openBtn.disabled = true;
-        showUploadOverlay(true);
-      } catch (_) {}
-      form.submit();
-    }
+
+    // SEMPRE processar localmente para não estourar o disco do PythonAnywhere
+    processLocalMag(file)
+      .then(() => {
+        // Salva o pacote localmente após processar
+        return cacheStorePackage(file)
+          .then(() => {
+            showToast(
+              `Pacote carregado localmente: ${file.name || "arquivo"}`,
+              "success"
+            );
+          })
+          .catch(() => {});
+      })
+      .catch((err) => {
+        console.error("Falha ao processar arquivo local:", err);
+        showToast(
+          "Falha ao ler o arquivo local. Verifique o conteúdo do .mag.",
+          "error"
+        );
+        showUploadOverlay(false);
+        if (openBtn) openBtn.disabled = false;
+      });
   });
 }
 
@@ -657,33 +649,45 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   updatePlayButton();
 
-  // Tentar carregar pacote salvo localmente se não houver áudio inicial do servidor
-  const initial = document.getElementById("initialData");
-  const shouldLoadCached =
-    (localModeToggle ? localModeToggle.checked : false) && !initial;
-  if (shouldLoadCached) {
-    cacheLoadPackage()
-      .then(({ meta, blob }) => {
-        cachedMeta = meta;
-        if (blob) {
-          console.log("Carregando pacote local salvo:", meta && meta.name);
-          return processLocalMag(blob).then(() => {
-            const name = (meta && meta.name) || "pacote";
-            showToast(`Carregado do cache: ${name}`, "info");
-          });
-        }
-      })
-      .catch((e) =>
-        console.warn("Sem pacote local salvo ou erro ao carregar:", e)
-      );
-  }
+  // Tentar carregar pacote salvo localmente ao iniciar (sempre em modo local)
+  cacheLoadPackage()
+    .then(({ meta, blob }) => {
+      cachedMeta = meta;
+      if (blob) {
+        console.log("Carregando pacote local salvo:", meta && meta.name);
+        return processLocalMag(blob).then(() => {
+          const name = (meta && meta.name) || "pacote";
+          showToast(`Carregado do cache: ${name}`, "info");
+        });
+      }
+    })
+    .catch((e) =>
+      console.warn("Sem pacote local salvo ou erro ao carregar:", e)
+    );
 
   // Botão limpar cache local
   const clearBtn = document.getElementById("clearLocalBtn");
   if (clearBtn) {
     clearBtn.addEventListener("click", async () => {
       await cacheClearPackage();
-      showToast("Pacote salvo localmente foi removido.", "info");
+      // Limpar também a interface
+      if (trackSelect) trackSelect.innerHTML = "";
+      const trackContainer = document.getElementById("localTrackContainer");
+      if (trackContainer) trackContainer.style.display = "none";
+      const mdContainer = document.getElementById("localMarkdowns");
+      if (mdContainer) {
+        mdContainer.style.display = "none";
+        mdContainer.innerHTML = "";
+      }
+      if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer.src = "";
+      }
+      if (songTitle) songTitle.textContent = "Selecione um arquivo .mag";
+      if (playPauseBtn) playPauseBtn.disabled = true;
+      if (rewindBtn) rewindBtn.disabled = true;
+      if (forwardBtn) forwardBtn.disabled = true;
+      showToast("Pacote local removido. Selecione um novo arquivo.", "info");
     });
   }
 
