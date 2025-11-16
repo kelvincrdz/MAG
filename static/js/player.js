@@ -34,6 +34,7 @@ let isDragging = false;
 let isPlaying = false;
 let currentObjectUrls = [];
 let cachedMeta = null;
+let serverPkgId = null; // Armazena o pkg_id do servidor quando disponível
 
 // Configurações das fitas
 const tapeConfig = {
@@ -58,38 +59,20 @@ if (openBtn) {
   });
 }
 
-// Botão "Ver Arquivos" - redireciona para a página de arquivos com o pkg_id da URL
+// Botão "Ver Arquivos" - redireciona para a página de arquivos com o pkg_id
 if (viewFilesBtn) {
   viewFilesBtn.addEventListener("click", function (e) {
     e.preventDefault();
 
-    // Verificar se há markdowns no elemento localMarkdowns (modo local/player)
-    const mdContainer = document.getElementById("localMarkdowns");
-
-    // Se estamos em modo local e há markdowns processados, não navegar (ainda não implementado)
-    if (mdContainer && window.cachedAudios && window.cachedAudios.length > 0) {
-      showToast(
-        "Modo local: visualização de arquivos ainda não disponível. Use o modo servidor para acessar a página completa.",
-        "info"
-      );
-      return;
-    }
-
-    // Modo servidor: extrair pkg_id e navegar
-    const pathParts = window.location.pathname.split("/").filter((p) => p);
-    const playerIndex = pathParts.indexOf("player");
-    let pkgId = null;
-
-    if (playerIndex >= 0 && playerIndex < pathParts.length - 1) {
-      pkgId = pathParts[playerIndex + 1];
-    }
-
-    if (pkgId && pkgId !== "") {
-      window.location.href = `/arquivos/${pkgId}/`;
+    // Usar o pkg_id armazenado do servidor
+    if (serverPkgId) {
+      window.location.href = `/arquivos/${serverPkgId}/`;
     } else {
+      // Modo local: informa sobre a limitação
       showToast(
-        "Pacote não identificado. Carregue um arquivo .mag primeiro.",
-        "info"
+        "Modo local: Arquivos markdown foram processados localmente. Para visualizar na página de arquivos, faça upload do .mag para o servidor.",
+        "info",
+        6000
       );
     }
   });
@@ -339,13 +322,13 @@ async function processLocalMag(file) {
       }
     }
 
-    // Mostrar botão "Ver Arquivos" se estiver na página do player e houver markdowns
+    // Mostrar botão "Ver Arquivos" no modo local se houver markdowns
     if (viewFilesBtn && markdowns.length > 0) {
       console.log(
-        "Mostrando botão Ver Arquivos (modo local - markdowns encontrados)"
+        `Mostrando botão Ver Arquivos (modo local - ${markdowns.length} markdown(s) encontrado(s))`
       );
       viewFilesBtn.style.setProperty("display", "inline-block", "important");
-      viewFilesBtn.title = `Ver ${markdowns.length} arquivo(s) markdown`;
+      viewFilesBtn.title = `${markdowns.length} arquivo(s) markdown encontrado(s) - clique para mais informações`;
     }
 
     console.log("✅ Processamento concluído com sucesso!");
@@ -838,6 +821,7 @@ document.addEventListener("DOMContentLoaded", function () {
     .finally(() => {
       // Garantir que overlay seja fechado após carregar cache
       showUploadOverlay(false);
+      // Nota: O botão Ver Arquivos será mostrado pelo processLocalMag se houver markdowns
     });
 
   // Botão limpar cache local
@@ -874,13 +858,24 @@ document.addEventListener("DOMContentLoaded", function () {
     if (url) {
       console.log("Carregando áudio inicial:", url, title);
       setAudioSource(url, title);
-      // Mostrar botão "Ver Arquivos" sempre que houver pacote do servidor
-      if (viewFilesBtn) {
+
+      // Extrair e armazenar pkg_id da URL
+      const pathParts = window.location.pathname.split("/").filter((p) => p);
+      const playerIndex = pathParts.indexOf("player");
+      if (playerIndex >= 0 && playerIndex < pathParts.length - 1) {
+        serverPkgId = pathParts[playerIndex + 1];
+        console.log("pkg_id do servidor identificado:", serverPkgId);
+      }
+
+      // Mostrar botão "Ver Arquivos" apenas se houver pkg_id
+      if (viewFilesBtn && serverPkgId) {
         console.log("Mostrando botão Ver Arquivos (modo servidor)");
         viewFilesBtn.style.setProperty("display", "inline-block", "important");
         viewFilesBtn.title = "Ver arquivos e markdowns";
-      } else {
-        console.warn("viewFilesBtn não encontrado!");
+      } else if (!serverPkgId) {
+        console.warn(
+          "pkg_id não encontrado na URL, botão Ver Arquivos não será exibido"
+        );
       }
     }
   } else {
