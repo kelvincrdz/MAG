@@ -139,9 +139,8 @@ if (fileInput) {
         );
       })
       .finally(() => {
-        // Garantir que overlay seja escondido e botão reabilitado SEMPRE
+        // Garantir que overlay seja escondido SEMPRE
         showUploadOverlay(false);
-        if (openBtn) openBtn.disabled = false;
         // Limpa o input para permitir selecionar o mesmo arquivo novamente
         if (fileInput) fileInput.value = "";
       });
@@ -153,8 +152,7 @@ async function processLocalMag(file) {
   if (!window.marked) throw new Error("marked não carregado");
   if (!window.DOMPurify) throw new Error("DOMPurify não carregado");
 
-  // Mostrar overlay e desabilitar botão
-  if (openBtn) openBtn.disabled = true;
+  // Mostrar overlay (não desabilitar botão para permitir novo upload)
   showUploadOverlay(true, "Carregando arquivo…");
 
   try {
@@ -322,13 +320,20 @@ async function processLocalMag(file) {
       }
     }
 
-    // Mostrar botão "Ver Arquivos" no modo local se houver markdowns
-    if (viewFilesBtn && markdowns.length > 0) {
+    // Mostrar botão "Ver Arquivos" no modo local se houver áudios OU markdowns
+    const hasContent = audios.length > 0 || markdowns.length > 0;
+    if (viewFilesBtn && hasContent) {
       console.log(
-        `Mostrando botão Ver Arquivos (modo local - ${markdowns.length} markdown(s) encontrado(s))`
+        `Mostrando botão Ver Arquivos (modo local - ${audios.length} áudio(s), ${markdowns.length} markdown(s))`
       );
       viewFilesBtn.style.setProperty("display", "inline-block", "important");
-      viewFilesBtn.title = `${markdowns.length} arquivo(s) markdown encontrado(s) - clique para mais informações`;
+      if (markdowns.length > 0 && audios.length > 0) {
+        viewFilesBtn.title = `${audios.length} áudio(s) e ${markdowns.length} markdown(s) - clique para mais informações`;
+      } else if (markdowns.length > 0) {
+        viewFilesBtn.title = `${markdowns.length} markdown(s) - clique para mais informações`;
+      } else {
+        viewFilesBtn.title = `${audios.length} áudio(s) - clique para mais informações`;
+      }
     }
 
     console.log("✅ Processamento concluído com sucesso!");
