@@ -62,9 +62,21 @@ if (openBtn) {
 if (viewFilesBtn) {
   viewFilesBtn.addEventListener("click", function (e) {
     e.preventDefault();
-    // Extrai o pkg_id da URL atual (formato: /player/<pkg_id>/)
+
+    // Verificar se há markdowns no elemento localMarkdowns (modo local/player)
+    const mdContainer = document.getElementById("localMarkdowns");
+
+    // Se estamos em modo local e há markdowns processados, não navegar (ainda não implementado)
+    if (mdContainer && window.cachedAudios && window.cachedAudios.length > 0) {
+      showToast(
+        "Modo local: visualização de arquivos ainda não disponível. Use o modo servidor para acessar a página completa.",
+        "info"
+      );
+      return;
+    }
+
+    // Modo servidor: extrair pkg_id e navegar
     const pathParts = window.location.pathname.split("/").filter((p) => p);
-    // Procura por 'player' e pega o próximo elemento
     const playerIndex = pathParts.indexOf("player");
     let pkgId = null;
 
@@ -327,13 +339,14 @@ async function processLocalMag(file) {
       }
     }
 
-    // Mostrar botão "Ver Arquivos" se estiver na página do player
+    // Mostrar botão "Ver Arquivos" se estiver na página do player e houver markdowns
     if (viewFilesBtn && markdowns.length > 0) {
       viewFilesBtn.style.display = "inline-block";
       viewFilesBtn.title = `Ver ${markdowns.length} arquivo(s) markdown`;
     }
 
     console.log("✅ Processamento concluído com sucesso!");
+    return Promise.resolve(); // Garantir que a Promise seja resolvida
   } catch (error) {
     console.error("Erro ao processar arquivo:", error);
     throw error;
@@ -818,7 +831,11 @@ document.addEventListener("DOMContentLoaded", function () {
     })
     .catch((e) =>
       console.warn("Sem pacote local salvo ou erro ao carregar:", e)
-    );
+    )
+    .finally(() => {
+      // Garantir que overlay seja fechado após carregar cache
+      showUploadOverlay(false);
+    });
 
   // Botão limpar cache local
   const clearBtn = document.getElementById("clearLocalBtn");
@@ -854,9 +871,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (url) {
       console.log("Carregando áudio inicial:", url, title);
       setAudioSource(url, title);
-      // Mostrar botão "Ver Arquivos" se houver pkg_id na URL
+      // Mostrar botão "Ver Arquivos" sempre que houver pacote do servidor
       if (viewFilesBtn) {
         viewFilesBtn.style.display = "inline-block";
+        viewFilesBtn.title = "Ver arquivos e markdowns";
       }
     }
   }
