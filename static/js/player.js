@@ -78,9 +78,12 @@ if (fileInput) {
       return;
     }
 
+    console.log("Iniciando processamento do arquivo:", file.name);
+
     // SEMPRE processar localmente para não estourar o disco do PythonAnywhere
     processLocalMag(file)
       .then(() => {
+        console.log("Processamento concluído, salvando no cache...");
         // Salva o pacote localmente após processar
         return cacheStorePackage(file)
           .then(() => {
@@ -89,7 +92,9 @@ if (fileInput) {
               "success"
             );
           })
-          .catch(() => {});
+          .catch((cacheErr) => {
+            console.warn("Erro ao salvar no cache:", cacheErr);
+          });
       })
       .catch((err) => {
         console.error("Falha ao processar arquivo local:", err);
@@ -97,6 +102,7 @@ if (fileInput) {
           "Falha ao ler o arquivo local. Verifique o conteúdo do .mag.",
           "error"
         );
+        // Garantir que overlay seja escondido em caso de erro
         showUploadOverlay(false);
         if (openBtn) openBtn.disabled = false;
       });
@@ -108,114 +114,122 @@ async function processLocalMag(file) {
   if (!window.marked) throw new Error("marked não carregado");
   if (!window.DOMPurify) throw new Error("DOMPurify não carregado");
 
+  // Mostrar overlay e desabilitar botão
+  if (openBtn) openBtn.disabled = true;
+  showUploadOverlay(true);
+
   try {
-    if (openBtn) openBtn.disabled = true;
-    showUploadOverlay(true);
-  } catch (_) {}
+    const zip = await JSZip.loadAsync(file);
+    const allowedExts = new Set([
+      ".mp3",
+      ".wav",
+      ".ogg",
+      ".m4a",
+      ".aac",
+      ".flac",
+      ".oga",
+      ".md",
+      ".markdown",
+    ]);
 
-  const zip = await JSZip.loadAsync(file);
-  const allowedExts = new Set([
-    ".mp3",
-    ".wav",
-    ".ogg",
-    ".m4a",
-    ".aac",
-    ".flac",
-    ".oga",
-    ".md",
-    ".markdown",
-  ]);
+    const audioEntries = [];
+    const mdEntries = [];
+    zip.forEach((relativePath, entry) => {
+      if (entry.dir) return;
+      const norm = relativePath.replace(/\\\\/g, "/");
+      const lower = norm.toLowerCase();
+      if (!(lower.startsWith("depoimento/") || lower.startsWith("arquivos/")))
+        return;
+      const ext = (norm.slice(norm.lastIndexOf(".")) || "").toLowerCase();
+      if (!allowedExts.has(ext)) return;
+      if (ext === ".md" || ext === ".markdown") {
+        mdEntries.push(entry);
+      } else {
+        audioEntries.push(entry);
+      }
+    });
 
-  const audioEntries = [];
-  const mdEntries = [];
-  zip.forEach((relativePath, entry) => {
-    if (entry.dir) return;
-    const norm = relativePath.replace(/\\\\/g, "/");
-    const lower = norm.toLowerCase();
-    if (!(lower.startsWith("depoimento/") || lower.startsWith("arquivos/")))
-      return;
-    const ext = (norm.slice(norm.lastIndexOf(".")) || "").toLowerCase();
-    if (!allowedExts.has(ext)) return;
-    if (ext === ".md" || ext === ".markdown") {
-      mdEntries.push(entry);
-    } else {
-      audioEntries.push(entry);
-    }
-  });
+    // Carrega áudios e markdowns em paralelo
+    // Limpa URLs anteriores para evitar vazamento de memória
+    try {
+      revokeObjectUrls();
+    } catch (_) {}
 
-  // Carrega áudios e markdowns em paralelo
-  // Limpa URLs anteriores para evitar vazamento de memória
-  try {
-    revokeObjectUrls();
-  } catch (_) {}
+    const audioPromises = audioEntries.map(async (entry) => {
+      const blob = await entry.async("blob");
+      const url = URL.createObjectURL(blob);
+      currentObjectUrls.push(url);
+      const name = entry.name.split("/").pop() || entry.name;
+      return { name, url };
+    });
 
-  const audioPromises = audioEntries.map(async (entry) => {
-    const blob = await entry.async("blob");
-    const url = URL.createObjectURL(blob);
-    currentObjectUrls.push(url);
-    const name = entry.name.split("/").pop() || entry.name;
-    return { name, url };
-  });
+    const mdPromises = mdEntries.map(async (entry) => {
+      const text = await entry.async("string");
+      const html = window.marked.parse(text);
+      const safe = window.DOMPurify.sanitize(html);
+      const name = entry.name.split("/").pop() || entry.name;
+      return { name, html: safe };
+    });
 
-  const mdPromises = mdEntries.map(async (entry) => {
-    const text = await entry.async("string");
-    const html = window.marked.parse(text);
-    const safe = window.DOMPurify.sanitize(html);
-    const name = entry.name.split("/").pop() || entry.name;
-    return { name, html: safe };
-  });
+    const [audios, markdowns] = await Promise.all([
+      Promise.all(audioPromises),
+      Promise.all(mdPromises),
+    ]);
 
-  const [audios, markdowns] = await Promise.all([
-    Promise.all(audioPromises),
-    Promise.all(mdPromises),
-  ]);
-
-  // Popular seletor de faixas
-  const trackContainer = document.getElementById("localTrackContainer");
-  if (trackContainer && trackSelect) {
-    trackSelect.innerHTML = "";
-    if (audios.length > 0) {
-      audios.forEach((a, idx) => {
-        const opt = document.createElement("option");
-        opt.value = a.url;
-        opt.textContent = `${idx + 1}. ${a.name}`;
-        trackSelect.appendChild(opt);
-      });
-      trackContainer.style.display = "block";
+    // Popular seletor de faixas
+    const trackContainer = document.getElementById("localTrackContainer");
+    if (trackContainer && trackSelect) {
+      trackSelect.innerHTML = "";
+      if (audios.length > 0) {
+        audios.forEach((a, idx) => {
+          const opt = document.createElement("option");
+          opt.value = a.url;
+          opt.textContent = `${idx + 1}. ${a.name}`;
+          trackSelect.appendChild(opt);
+        });
+        trackContainer.style.display = "block";
+        setAudioSource(audios[0].url, audios[0].name, false);
+      } else {
+        trackContainer.style.display = "none";
+      }
+    } else if (audios.length > 0) {
+      // Se não houver trackContainer mas houver áudios, carregar o primeiro
       setAudioSource(audios[0].url, audios[0].name, false);
-    } else {
-      trackContainer.style.display = "none";
     }
-  }
 
-  // Renderizar markdowns
-  const mdContainer = document.getElementById("localMarkdowns");
-  if (mdContainer) {
-    if (markdowns.length > 0) {
-      mdContainer.style.display = "block";
-      mdContainer.innerHTML = markdowns
-        .map(
-          (m, i) => `
-          <div class="md-file-name"><i class="fas fa-file-alt" style="margin-right:6px;"></i>${
-            m.name
-          }</div>
-          <div class="markdown-body">${m.html}</div>
-          ${
-            i < markdowns.length - 1
-              ? '<hr style="border:none; border-top:1px solid #3a4e5e; margin:24px 0;">'
-              : ""
-          }
-        `
-        )
-        .join("");
-    } else {
-      mdContainer.style.display = "none";
-      mdContainer.innerHTML = "";
+    // Renderizar markdowns
+    const mdContainer = document.getElementById("localMarkdowns");
+    if (mdContainer) {
+      if (markdowns.length > 0) {
+        mdContainer.style.display = "block";
+        mdContainer.innerHTML = markdowns
+          .map(
+            (m, i) => `
+            <div class="md-file-name"><i class="fas fa-file-alt" style="margin-right:6px;"></i>${
+              m.name
+            }</div>
+            <div class="markdown-body">${m.html}</div>
+            ${
+              i < markdowns.length - 1
+                ? '<hr style="border:none; border-top:1px solid #3a4e5e; margin:24px 0;">'
+                : ""
+            }
+          `
+          )
+          .join("");
+      } else {
+        mdContainer.style.display = "none";
+        mdContainer.innerHTML = "";
+      }
     }
+  } catch (error) {
+    console.error("Erro ao processar arquivo:", error);
+    throw error;
+  } finally {
+    // SEMPRE desabilitar overlay e reabilitar botão ao final
+    showUploadOverlay(false);
+    if (openBtn) openBtn.disabled = false;
   }
-
-  showUploadOverlay(false);
-  if (openBtn) openBtn.disabled = false;
 }
 
 function revokeObjectUrls() {
