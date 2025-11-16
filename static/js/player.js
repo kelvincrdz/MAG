@@ -341,7 +341,10 @@ async function processLocalMag(file) {
 
     // Mostrar botão "Ver Arquivos" se estiver na página do player e houver markdowns
     if (viewFilesBtn && markdowns.length > 0) {
-      viewFilesBtn.style.display = "inline-block";
+      console.log(
+        "Mostrando botão Ver Arquivos (modo local - markdowns encontrados)"
+      );
+      viewFilesBtn.style.setProperty("display", "inline-block", "important");
       viewFilesBtn.title = `Ver ${markdowns.length} arquivo(s) markdown`;
     }
 
@@ -873,10 +876,17 @@ document.addEventListener("DOMContentLoaded", function () {
       setAudioSource(url, title);
       // Mostrar botão "Ver Arquivos" sempre que houver pacote do servidor
       if (viewFilesBtn) {
-        viewFilesBtn.style.display = "inline-block";
+        console.log("Mostrando botão Ver Arquivos (modo servidor)");
+        viewFilesBtn.style.setProperty("display", "inline-block", "important");
         viewFilesBtn.title = "Ver arquivos e markdowns";
+      } else {
+        console.warn("viewFilesBtn não encontrado!");
       }
     }
+  } else {
+    console.log(
+      "Elemento initialAudio não encontrado - sem pacote do servidor"
+    );
   }
 
   // Listener para o seletor de faixas (na página de arquivos)
