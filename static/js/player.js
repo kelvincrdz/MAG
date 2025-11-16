@@ -227,12 +227,24 @@ async function processLocalMag(file) {
         return;
       }
 
-      // Áudios: na página do player, somente Depoimento/; na página de arquivos, ambos
-      if (isPlayerPage ? inDepo : inDepo || inArq) {
+      // Áudios: em modo local aceitar de Depoimento/ e Arquivos/ (player e arquivos)
+      if (inDepo || inArq) {
         audioEntries.push(entry);
       }
     });
 
+    // Ordenar: Depoimento/ primeiro, depois Arquivos/, ambos por nome
+    if (audioEntries.length > 1) {
+      audioEntries.sort((a, b) => {
+        const aKey =
+          (a.name.toLowerCase().startsWith("depoimento/") ? "0" : "1") +
+          a.name.toLowerCase();
+        const bKey =
+          (b.name.toLowerCase().startsWith("depoimento/") ? "0" : "1") +
+          b.name.toLowerCase();
+        return aKey.localeCompare(bKey);
+      });
+    }
     // Carrega áudios e markdowns em paralelo
     // Limpa URLs anteriores para evitar vazamento de memória
     try {
@@ -842,6 +854,22 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   updatePlayButton();
 
+  // Extrair pkg_id do servidor a partir da URL, independente de áudio inicial
+  try {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("player");
+    if (idx >= 0 && idx < parts.length - 1) {
+      serverPkgId = parts[idx + 1];
+      console.log("pkg_id do servidor identificado (via URL):", serverPkgId);
+      if (viewFilesBtn && serverPkgId) {
+        viewFilesBtn.style.setProperty("display", "inline-block", "important");
+        viewFilesBtn.title = "Ver arquivos e markdowns";
+      }
+    }
+  } catch (e) {
+    console.warn("Falha ao extrair pkg_id da URL:", e);
+  }
+
   // Tentar carregar pacote salvo localmente ao iniciar (sempre em modo local)
   cacheLoadPackage()
     .then(({ meta, blob }) => {
@@ -897,25 +925,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (url) {
       console.log("Carregando áudio inicial:", url, title);
       setAudioSource(url, title);
-
-      // Extrair e armazenar pkg_id da URL
-      const pathParts = window.location.pathname.split("/").filter((p) => p);
-      const playerIndex = pathParts.indexOf("player");
-      if (playerIndex >= 0 && playerIndex < pathParts.length - 1) {
-        serverPkgId = pathParts[playerIndex + 1];
-        console.log("pkg_id do servidor identificado:", serverPkgId);
-      }
-
-      // Mostrar botão "Ver Arquivos" apenas se houver pkg_id
-      if (viewFilesBtn && serverPkgId) {
-        console.log("Mostrando botão Ver Arquivos (modo servidor)");
-        viewFilesBtn.style.setProperty("display", "inline-block", "important");
-        viewFilesBtn.title = "Ver arquivos e markdowns";
-      } else if (!serverPkgId) {
-        console.warn(
-          "pkg_id não encontrado na URL, botão Ver Arquivos não será exibido"
-        );
-      }
+      // Se já identificamos serverPkgId acima, o botão já foi exibido
     }
   } else {
     console.log(
