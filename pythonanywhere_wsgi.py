@@ -15,8 +15,8 @@ import os
 import sys
 
 # Add your project directory to the sys.path
-# IMPORTANT: Update '/home/yourusername' to your actual PythonAnywhere username
-path = '/home/yourusername/MAG'
+# IMPORTANT: Update '/home/nivelKdev' to your actual PythonAnywhere username
+path = '/home/nivelKdev/MAG'
 if path not in sys.path:
     sys.path.insert(0, path)
 

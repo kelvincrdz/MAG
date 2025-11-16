@@ -32,7 +32,7 @@ ALLOWED_HOSTS = ["*"]
 # FORM SUBMISSION
 # Add your PythonAnywhere URL here
 CSRF_TRUSTED_ORIGINS = [
-    # "https://yourusername.pythonanywhere.com",
+    # "https://nivelKdev.pythonanywhere.com",
 ]
 
 # CSRF Settings for production

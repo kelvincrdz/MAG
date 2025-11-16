@@ -60,20 +60,20 @@ No dashboard do PythonAnywhere, vá em "Web" e:
 
 Na aba "Web":
 
-1. Clique no link do arquivo WSGI (será algo como `/var/www/yourusername_pythonanywhere_com_wsgi.py`)
+1. Clique no link do arquivo WSGI (será algo como `/var/www/nivelKdev_pythonanywhere_com_wsgi.py`)
 2. Substitua TODO o conteúdo pelo conteúdo do arquivo `pythonanywhere_wsgi.py` deste projeto
 3. **IMPORTANTE**: Atualize o caminho no arquivo WSGI:
    ```python
-   path = '/home/yourusername/MAG'
+   path = '/home/nivelKdev/MAG'
    ```
-   Substitua `yourusername` pelo seu nome de usuário do PythonAnywhere
+   Substitua `nivelKdev` pelo seu nome de usuário do PythonAnywhere
 
 ### 9. Configurar Virtual Environment
 
 Na aba "Web", na seção "Virtualenv":
 
-1. Insira o caminho: `/home/yourusername/.virtualenvs/mag_player`
-2. Substitua `yourusername` pelo seu nome de usuário
+1. Insira o caminho: `/home/nivelKdev/.virtualenvs/mag_player`
+2. Substitua `nivelKdev` pelo seu nome de usuário
 
 ### 10. Configurar Diretórios Estáticos
 
@@ -81,12 +81,12 @@ Na aba "Web", na seção "Static files":
 
 Adicione duas entradas:
 
-| URL      | Directory                          |
-| -------- | ---------------------------------- |
-| /static/ | /home/yourusername/MAG/staticfiles |
-| /media/  | /home/yourusername/MAG/media       |
+| URL      | Directory                       |
+| -------- | ------------------------------- |
+| /static/ | /home/nivelKdev/MAG/staticfiles |
+| /media/  | /home/nivelKdev/MAG/media       |
 
-Substitua `yourusername` pelo seu nome de usuário.
+Substitua `nivelKdev` pelo seu nome de usuário.
 
 ### 11. Configurar Settings.py
 
@@ -96,10 +96,10 @@ Edite o arquivo `mag_player/settings.py`:
 # Para produção, configure:
 DEBUG = False
 
-ALLOWED_HOSTS = ["yourusername.pythonanywhere.com"]
+ALLOWED_HOSTS = ["nivelKdev.pythonanywhere.com"]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://yourusername.pythonanywhere.com",
+    "https://nivelKdev.pythonanywhere.com",
 ]
 
 # Ative HTTPS em produção
@@ -113,7 +113,7 @@ Na aba "Web", clique no botão verde **"Reload"** para aplicar as mudanças.
 
 ### 13. Acessar a Aplicação
 
-Acesse: `https://yourusername.pythonanywhere.com`
+Acesse: `https://nivelKdev.pythonanywhere.com`
 
 ## Comandos Úteis
 
