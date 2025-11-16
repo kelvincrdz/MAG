@@ -46,16 +46,19 @@ const tapeConfig = {
   },
 };
 
-// Botão de abrir arquivo (.mag -> upload)
+// Botão de abrir arquivo (.mag -> processamento local)
+// IMPORTANTE: Todo o processamento é feito localmente no navegador usando JSZip.
+// NENHUM dado é enviado ao servidor. O arquivo permanece no dispositivo do usuário.
 if (openBtn) {
-  openBtn.addEventListener("click", function () {
-    const form = document.getElementById("uploadForm");
-    if (!form) return;
+  openBtn.addEventListener("click", function (e) {
+    e.preventDefault(); // Previne qualquer comportamento padrão
+    e.stopPropagation(); // Para propagação do evento
     if (fileInput) fileInput.click();
   });
 }
 
-// Upload do arquivo .mag para o servidor
+// Processamento local do arquivo .mag
+// Função ASYNC que processa o arquivo .mag/zip localmente no navegador
 function showUploadOverlay(show, message = "Processando arquivo…") {
   const overlay = document.getElementById("uploadOverlay");
   if (!overlay) return;
@@ -70,17 +73,22 @@ function showUploadOverlay(show, message = "Processando arquivo…") {
 
 if (fileInput) {
   fileInput.addEventListener("change", function (e) {
+    e.preventDefault(); // Previne submit do formulário
+    e.stopPropagation(); // Para propagação
+
     const file = e.target.files[0];
     if (!file) return;
     const name = file.name.toLowerCase();
     if (!(name.endsWith(".mag") || name.endsWith(".zip"))) {
       showToast("Por favor, selecione um arquivo .mag", "error");
+      fileInput.value = ""; // Limpa o input
       return;
     }
     // Checagem rápida de tamanho no cliente (limite generoso: 200MB)
     const CLIENT_MAX_BYTES = 200 * 1024 * 1024;
     if (file.size > CLIENT_MAX_BYTES) {
       showToast("Arquivo muito grande. Limite máximo: 200MB.", "error");
+      fileInput.value = ""; // Limpa o input
       return;
     }
 
@@ -113,6 +121,8 @@ if (fileInput) {
         // Garantir que overlay seja escondido e botão reabilitado SEMPRE
         showUploadOverlay(false);
         if (openBtn) openBtn.disabled = false;
+        // Limpa o input para permitir selecionar o mesmo arquivo novamente
+        if (fileInput) fileInput.value = "";
       });
   });
 }
@@ -124,10 +134,13 @@ async function processLocalMag(file) {
 
   // Mostrar overlay e desabilitar botão
   if (openBtn) openBtn.disabled = true;
-  showUploadOverlay(true, "Processando arquivo localmente…");
+  showUploadOverlay(true, "Carregando arquivo…");
 
   try {
+    console.log("Carregando ZIP...");
     const zip = await JSZip.loadAsync(file);
+    console.log("ZIP carregado, identificando arquivos...");
+    showUploadOverlay(true, "Identificando arquivos…");
     const allowedExts = new Set([
       ".mp3",
       ".wav",
@@ -163,15 +176,39 @@ async function processLocalMag(file) {
       revokeObjectUrls();
     } catch (_) {}
 
-    const audioPromises = audioEntries.map(async (entry) => {
-      const blob = await entry.async("blob");
+    console.log(
+      `Encontrados ${audioEntries.length} áudios e ${mdEntries.length} markdowns`
+    );
+    showUploadOverlay(true, "Carregando áudios…");
+
+    // OTIMIZAÇÃO: Carregar apenas o primeiro áudio imediatamente
+    let audios = [];
+    if (audioEntries.length > 0) {
+      // Carrega o primeiro áudio imediatamente
+      const firstEntry = audioEntries[0];
+      const blob = await firstEntry.async("blob");
       const url = URL.createObjectURL(blob);
       currentObjectUrls.push(url);
-      const name = entry.name.split("/").pop() || entry.name;
-      return { name, url };
-    });
+      const name = firstEntry.name.split("/").pop() || firstEntry.name;
+      audios.push({ name, url, entry: firstEntry });
 
-    const mdPromises = mdEntries.map(async (entry) => {
+      // Adiciona os outros áudios como "lazy load" (só o metadata)
+      for (let i = 1; i < audioEntries.length; i++) {
+        const entry = audioEntries[i];
+        const name = entry.name.split("/").pop() || entry.name;
+        audios.push({ name, url: null, entry, lazy: true });
+      }
+    }
+
+    // Carregar markdowns de forma assíncrona (não bloqueia)
+    console.log("Carregando markdowns...");
+    showUploadOverlay(true, "Processando markdowns…");
+
+    // OTIMIZAÇÃO: Limitar a 10 markdowns inicialmente para não travar
+    const MAX_INITIAL_MDS = 10;
+    const mdToProcess = mdEntries.slice(0, MAX_INITIAL_MDS);
+
+    const mdPromises = mdToProcess.map(async (entry) => {
       const text = await entry.async("string");
       const html = window.marked.parse(text);
       const safe = window.DOMPurify.sanitize(html);
@@ -179,30 +216,53 @@ async function processLocalMag(file) {
       return { name, html: safe };
     });
 
-    const [audios, markdowns] = await Promise.all([
-      Promise.all(audioPromises),
-      Promise.all(mdPromises),
-    ]);
+    const markdowns = await Promise.all(mdPromises);
+
+    // Se tem mais markdowns, adiciona aviso
+    if (mdEntries.length > MAX_INITIAL_MDS) {
+      markdowns.push({
+        name: "Nota",
+        html: `<div style="padding:12px; background:#2a2e32; border-radius:4px; color:#6c9bd1;">
+          <i class="fas fa-info-circle"></i> 
+          Mostrando ${MAX_INITIAL_MDS} de ${mdEntries.length} arquivos markdown. 
+          Os demais estão disponíveis no arquivo .mag original.
+        </div>`,
+      });
+    }
+
+    console.log(`Markdowns processados: ${markdowns.length}`);
 
     // Popular seletor de faixas
+    console.log("Populando seletor de faixas...");
     const trackContainer = document.getElementById("localTrackContainer");
     if (trackContainer && trackSelect) {
       trackSelect.innerHTML = "";
       if (audios.length > 0) {
         audios.forEach((a, idx) => {
           const opt = document.createElement("option");
-          opt.value = a.url;
+          opt.value = idx.toString(); // Usa índice em vez de URL
           opt.textContent = `${idx + 1}. ${a.name}`;
+          opt.dataset.lazy = a.lazy ? "true" : "false";
           trackSelect.appendChild(opt);
         });
         trackContainer.style.display = "block";
-        setAudioSource(audios[0].url, audios[0].name, false);
+
+        // Armazena audios globalmente para acesso posterior
+        window.cachedAudios = audios;
+
+        // Carrega o primeiro áudio imediatamente
+        if (audios[0].url) {
+          setAudioSource(audios[0].url, audios[0].name, false);
+        }
       } else {
         trackContainer.style.display = "none";
       }
     } else if (audios.length > 0) {
       // Se não houver trackContainer mas houver áudios, carregar o primeiro
-      setAudioSource(audios[0].url, audios[0].name, false);
+      window.cachedAudios = audios;
+      if (audios[0].url) {
+        setAudioSource(audios[0].url, audios[0].name, false);
+      }
     }
 
     // Renderizar markdowns
@@ -230,6 +290,8 @@ async function processLocalMag(file) {
         mdContainer.innerHTML = "";
       }
     }
+
+    console.log("✅ Processamento concluído com sucesso!");
   } catch (error) {
     console.error("Erro ao processar arquivo:", error);
     throw error;
@@ -245,6 +307,38 @@ function revokeObjectUrls() {
     } catch (_) {}
   }
   currentObjectUrls = [];
+}
+
+// Função para carregar áudio sob demanda (lazy loading)
+async function loadAudioOnDemand(index) {
+  if (!window.cachedAudios || index >= window.cachedAudios.length) {
+    return null;
+  }
+
+  const audio = window.cachedAudios[index];
+
+  // Se já tem URL, retorna
+  if (audio.url) {
+    return audio;
+  }
+
+  // Se é lazy, carrega agora
+  if (audio.lazy && audio.entry) {
+    console.log(`Carregando áudio sob demanda: ${audio.name}`);
+    try {
+      const blob = await audio.entry.async("blob");
+      const url = URL.createObjectURL(blob);
+      currentObjectUrls.push(url);
+      audio.url = url;
+      audio.lazy = false;
+      return audio;
+    } catch (err) {
+      console.error(`Erro ao carregar áudio ${audio.name}:`, err);
+      return null;
+    }
+  }
+
+  return null;
 }
 
 window.addEventListener("beforeunload", () => {
@@ -711,6 +805,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Se vier áudio inicial do servidor
+  const initial = document.getElementById("initialAudio");
   if (initial) {
     const url = initial.getAttribute("data-audio-url");
     const title = initial.getAttribute("data-title") || "Depoimento";
@@ -722,19 +817,43 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Listener para o seletor de faixas (na página de arquivos)
   if (trackSelect) {
-    trackSelect.addEventListener("change", function () {
-      const opt = trackSelect.options[trackSelect.selectedIndex];
-      if (opt) {
-        console.log("Mudando para faixa:", opt.value, opt.text);
-        setAudioSource(opt.value, opt.text, true);
+    trackSelect.addEventListener("change", async function () {
+      const selectedIndex = trackSelect.selectedIndex;
+      const opt = trackSelect.options[selectedIndex];
+
+      if (!opt) return;
+
+      // Usa lazy loading se necessário
+      if (opt.dataset.lazy === "true") {
+        console.log("Carregando faixa sob demanda:", opt.textContent);
+        showUploadOverlay(true, "Carregando faixa…");
+
+        const audio = await loadAudioOnDemand(selectedIndex);
+
+        showUploadOverlay(false);
+
+        if (audio && audio.url) {
+          setAudioSource(audio.url, audio.name, true);
+        } else {
+          showToast("Erro ao carregar faixa", "error");
+        }
+      } else {
+        // Já está carregado, usa o índice
+        const audio = window.cachedAudios && window.cachedAudios[selectedIndex];
+        if (audio && audio.url) {
+          setAudioSource(audio.url, audio.name, true);
+        }
       }
     });
 
     // Se há um seletor e há opções, carregar o primeiro áudio automaticamente
     if (trackSelect.options.length > 0 && !initial) {
       const firstOpt = trackSelect.options[0];
-      console.log("Carregando primeira faixa:", firstOpt.value, firstOpt.text);
-      setAudioSource(firstOpt.value, firstOpt.text);
+      const firstAudio = window.cachedAudios && window.cachedAudios[0];
+      if (firstAudio && firstAudio.url) {
+        console.log("Carregando primeira faixa:", firstAudio.name);
+        setAudioSource(firstAudio.url, firstAudio.name);
+      }
     }
   }
 });
@@ -774,10 +893,23 @@ function setAudioSource(url, title, autoplay = false) {
   console.log("Áudio configurado com sucesso:", audioPlayer.src);
 }
 
-function setTrackByIndex(index, autoplay = false) {
+async function setTrackByIndex(index, autoplay = false) {
   if (!trackSelect) return;
   if (index < 0 || index >= trackSelect.options.length) return;
+
   trackSelect.selectedIndex = index;
   const opt = trackSelect.options[index];
-  setAudioSource(opt.value, opt.text, autoplay);
+
+  // Verifica se precisa fazer lazy loading
+  if (opt.dataset.lazy === "true") {
+    const audio = await loadAudioOnDemand(index);
+    if (audio && audio.url) {
+      setAudioSource(audio.url, audio.name, autoplay);
+    }
+  } else {
+    const audio = window.cachedAudios && window.cachedAudios[index];
+    if (audio && audio.url) {
+      setAudioSource(audio.url, audio.name, autoplay);
+    }
+  }
 }

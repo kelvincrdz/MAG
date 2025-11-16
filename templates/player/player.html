@@ -170,10 +170,8 @@
         <div id="localMarkdowns" style="display:none;"></div>
         <button id="clearLocalBtn" type="button" style="display:none;"></button>
 
-        <form id="uploadForm" action="{% url 'upload_mag' %}" method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            <input type="file" id="fileInput" name="magFile" accept=".mag,.zip" style="display:none;">
-        </form>
+        <!-- Input de arquivo STANDALONE (sem formulário para evitar submit ao servidor) -->
+        <input type="file" id="fileInput" name="magFile" accept=".mag,.zip" style="display:none;">
     </div>
 
     <div id="uploadOverlay">
