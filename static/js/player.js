@@ -338,8 +338,8 @@ if (logoutBtn) {
       audioPlayer.src = "";
     }
 
-    // Redirecionar para logout usando URL do Django
-    window.location.href = window.LOGOUT_URL || "/logout/";
+    // Redirecionar para logout
+    window.location.href = "/logout/";
   });
 }
 

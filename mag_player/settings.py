@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
-import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,21 +24,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-mag-player-2024-secret-key-change-in-production'
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# Set DEBUG = False in production (PythonAnywhere)
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
 # FORM SUBMISSION
-# Comment out the following line and place your railway URL, and your production URL in the array.
+# Add your PythonAnywhere URL here
 CSRF_TRUSTED_ORIGINS = [
-    "https://server-production-6fe1.up.railway.app",
+    # "https://yourusername.pythonanywhere.com",
 ]
 
 # CSRF Settings for production
-CSRF_COOKIE_SECURE = False  # Set to True when using HTTPS in production
+# PythonAnywhere uses HTTPS, so set these to True in production:
+CSRF_COOKIE_SECURE = False  # Set to True when deployed on PythonAnywhere
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False  # Set to True when using HTTPS in production
+SESSION_COOKIE_SECURE = False  # Set to True when deployed on PythonAnywhere
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Application definition
@@ -51,8 +52,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'cloudinary_storage',
-    'cloudinary',
     'player',
 ]
 
@@ -91,26 +90,12 @@ WSGI_APPLICATION = 'mag_player.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# Configuração do banco de dados com suporte para PostgreSQL no Railway
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-if DATABASE_URL:
-    # Produção: Usa PostgreSQL do Railway
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-else:
-    # Desenvolvimento: Usa SQLite local
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 
 # Password validation
@@ -151,24 +136,9 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# Media files configuration
-# Cloudinary para produção, sistema de arquivos local para desenvolvimento
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
-    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
-}
-
-# Define MEDIA_ROOT sempre (necessário para extração temporária de arquivos)
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+# Media files
 MEDIA_URL = '/media/'
-
-# Verifica se as credenciais do Cloudinary estão configuradas (produção)
-if all([os.environ.get('CLOUDINARY_CLOUD_NAME'), 
-        os.environ.get('CLOUDINARY_API_KEY'), 
-        os.environ.get('CLOUDINARY_API_SECRET')]):
-    # Produção: Usa Cloudinary para storage persistente
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -178,30 +148,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Session settings
 SESSION_COOKIE_AGE = 86400  # 1 dia
 SESSION_SAVE_EVERY_REQUEST = True
-
-# Logging configuration
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'player': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
-}
