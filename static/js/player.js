@@ -64,19 +64,46 @@ if (viewFilesBtn) {
   viewFilesBtn.addEventListener("click", function (e) {
     e.preventDefault();
 
-    // Usar o pkg_id armazenado do servidor
     if (serverPkgId) {
+      // Modo servidor: navega para página de arquivos completa
       window.location.href = `/arquivos/${serverPkgId}/`;
-    } else {
-      // Modo local: informa sobre a limitação
+      return;
+    }
+
+    // Modo local: alterna painel de markdowns (se existentes)
+    const panel = document.getElementById("localMarkdowns");
+    const content = document.getElementById("localMarkdownsContent");
+    if (!panel || !content) {
+      showToast("Painel local não disponível.", "error");
+      return;
+    }
+    const hasMd = content.innerHTML.trim().length > 0;
+    if (!hasMd) {
       showToast(
-        "Modo local: Arquivos markdown foram processados localmente. Para visualizar na página de arquivos, faça upload do .mag para o servidor.",
-        "info",
-        6000
+        "Nenhum markdown processado ainda. Selecione um arquivo .mag.",
+        "info"
       );
+      return;
+    }
+    // Toggle
+    if (panel.style.display === "none" || panel.style.display === "") {
+      panel.style.display = "block";
+      viewFilesBtn.classList.add("active");
+    } else {
+      panel.style.display = "none";
+      viewFilesBtn.classList.remove("active");
     }
   });
 }
+
+// Botão de fechar painel local
+document.addEventListener("click", (ev) => {
+  if (ev.target && ev.target.id === "closeLocalMdBtn") {
+    const panel = document.getElementById("localMarkdowns");
+    if (panel) panel.style.display = "none";
+    if (viewFilesBtn) viewFilesBtn.classList.remove("active");
+  }
+});
 
 // Processamento local do arquivo .mag
 // Função ASYNC que processa o arquivo .mag/zip localmente no navegador
@@ -175,8 +202,10 @@ async function processLocalMag(file) {
     const audioEntries = [];
     const mdEntries = [];
 
-    // Detectar se estamos na página do player ou de arquivos
-    const isPlayerPage = !document.getElementById("localMarkdowns");
+    // Detectar tipo de página via atributo data-page
+    const pageType =
+      (document.body && document.body.getAttribute("data-page")) || "player";
+    const isPlayerPage = pageType === "player";
 
     zip.forEach((relativePath, entry) => {
       if (entry.dir) return;
@@ -295,11 +324,12 @@ async function processLocalMag(file) {
     }
 
     // Renderizar markdowns APENAS na página de arquivos
-    const mdContainer = document.getElementById("localMarkdowns");
-    if (mdContainer) {
+    const mdPanel = document.getElementById("localMarkdowns");
+    const mdContent = document.getElementById("localMarkdownsContent");
+    window.localMarkdownData = markdowns; // Armazena globalmente
+    if (mdPanel && mdContent) {
       if (markdowns.length > 0) {
-        mdContainer.style.display = "block";
-        mdContainer.innerHTML = markdowns
+        mdContent.innerHTML = markdowns
           .map(
             (m, i) => `
             <div class="md-file-name"><i class="fas fa-file-alt" style="margin-right:6px;"></i>${
@@ -315,8 +345,7 @@ async function processLocalMag(file) {
           )
           .join("");
       } else {
-        mdContainer.style.display = "none";
-        mdContainer.innerHTML = "";
+        mdContent.innerHTML = "";
       }
     }
 

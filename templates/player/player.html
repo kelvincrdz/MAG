@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 
-<body>
+<body data-page="player">
     <div class="player-wrapper">
         <div class="cassette-player">
             <div class="cassette-container">
@@ -167,6 +167,21 @@
             </div>
 
             <audio id="audioPlayer" preload="none"></audio>
+            <!-- Painel local de Markdown (exibido apenas em modo local) -->
+            <div id="localMarkdowns"
+                style="display:none; max-width:760px; margin:28px auto 0; background:rgba(15,19,22,0.92); border:1px solid #2a2e32; border-radius:12px; padding:24px; backdrop-filter:blur(8px);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3
+                        style="margin:0; font-size:18px; color:#e2eef6; font-weight:600; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-file-alt"></i> Arquivos Markdown (Modo Local)
+                    </h3>
+                    <button type="button" id="closeLocalMdBtn" title="Fechar"
+                        style="background:#2a2e32; border:1px solid #3a4e5e; color:#cfe3f1; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px;">
+                        <i class="fas fa-times"></i> Fechar
+                    </button>
+                </div>
+                <div id="localMarkdownsContent" style="font-size:15px; line-height:1.7; color:#cfe3f1;"></div>
+            </div>
         </div>
 
         <input type="checkbox" id="localModeToggle" checked style="display:none;">
