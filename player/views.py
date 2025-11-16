@@ -209,6 +209,7 @@ def player_with_package(request, pkg_id: str):
     if not pkg_dir.exists():
         raise Http404('Pacote não encontrado')
 
+    # Player: busca APENAS áudios de Depoimento/
     depo_dir = pkg_dir / 'Depoimento'
     audios = _list_audio_files(depo_dir)
     tracks = []
@@ -245,11 +246,12 @@ def arquivos_view(request, pkg_id: str):
     arq_dir = pkg_dir / 'Arquivos'
     depo_dir = pkg_dir / 'Depoimento'
     
-    # Coleta áudios de ambas as pastas
+    # Arquivos: coleta áudios de QUALQUER pasta (Arquivos/ e Depoimento/)
     audio_files_arq = _list_audio_files(arq_dir)
     audio_files_depo = _list_audio_files(depo_dir)
     audio_files = audio_files_arq + audio_files_depo
     
+    # Markdowns apenas de Arquivos/
     md_files = _list_markdown_files(arq_dir)
 
     # Render markdowns (requere pacote 'markdown')

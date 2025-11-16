@@ -3,6 +3,7 @@ const fileInput =
   document.getElementById("fileInput") ||
   document.querySelector('input[type="file"][name="magFile"]');
 const openBtn = document.getElementById("openBtn");
+const viewFilesBtn = document.getElementById("viewFilesBtn");
 const playPauseBtn = document.getElementById("playPauseBtn");
 const rewindBtn = document.getElementById("rewindBtn");
 const forwardBtn = document.getElementById("forwardBtn");
@@ -54,6 +55,25 @@ if (openBtn) {
     e.preventDefault(); // Previne qualquer comportamento padrão
     e.stopPropagation(); // Para propagação do evento
     if (fileInput) fileInput.click();
+  });
+}
+
+// Botão "Ver Arquivos" - redireciona para a página de arquivos com o pkg_id da URL
+if (viewFilesBtn) {
+  viewFilesBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    // Extrai o pkg_id da URL atual (formato: /player/<pkg_id>/)
+    const pathParts = window.location.pathname.split("/").filter((p) => p);
+    const pkgId =
+      pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+    if (pkgId) {
+      window.location.href = `/arquivos/${pkgId}/`;
+    } else {
+      showToast(
+        "Pacote não identificado. Carregue um arquivo .mag primeiro.",
+        "info"
+      );
+    }
   });
 }
 
@@ -265,7 +285,7 @@ async function processLocalMag(file) {
       }
     }
 
-    // Renderizar markdowns
+    // Renderizar markdowns APENAS na página de arquivos
     const mdContainer = document.getElementById("localMarkdowns");
     if (mdContainer) {
       if (markdowns.length > 0) {
@@ -289,6 +309,12 @@ async function processLocalMag(file) {
         mdContainer.style.display = "none";
         mdContainer.innerHTML = "";
       }
+    }
+
+    // Mostrar botão "Ver Arquivos" se estiver na página do player
+    if (viewFilesBtn && markdowns.length > 0) {
+      viewFilesBtn.style.display = "inline-block";
+      viewFilesBtn.title = `Ver ${markdowns.length} arquivo(s) markdown`;
     }
 
     console.log("✅ Processamento concluído com sucesso!");
@@ -812,6 +838,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (url) {
       console.log("Carregando áudio inicial:", url, title);
       setAudioSource(url, title);
+      // Mostrar botão "Ver Arquivos" se houver pkg_id na URL
+      if (viewFilesBtn) {
+        viewFilesBtn.style.display = "inline-block";
+      }
     }
   }
 

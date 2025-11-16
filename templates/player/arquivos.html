@@ -386,8 +386,8 @@
                     </select>
                 </div>
 
-                {# Dados iniciais para o JS #}
-                <div id="initialData" data-audio-url="{{ audio_files.0.url }}" data-title="{{ audio_files.0.name }}"
+                {# Dados iniciais para o JS (compatível com player.js) #}
+                <div id="initialAudio" data-audio-url="{{ audio_files.0.url }}" data-title="{{ audio_files.0.name }}"
                     style="display:none;"></div>
 
                 {# Form de upload oculto para compatibilidade com player.js #}
