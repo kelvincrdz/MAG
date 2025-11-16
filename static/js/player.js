@@ -56,10 +56,16 @@ if (openBtn) {
 }
 
 // Upload do arquivo .mag para o servidor
-function showUploadOverlay(show) {
+function showUploadOverlay(show, message = "Processando arquivo…") {
   const overlay = document.getElementById("uploadOverlay");
   if (!overlay) return;
   overlay.style.display = show ? "flex" : "none";
+
+  // Atualizar mensagem se existir
+  const msgEl = overlay.querySelector('div[style*="font-size:14px"]');
+  if (msgEl && show) {
+    msgEl.textContent = message;
+  }
 }
 
 if (fileInput) {
@@ -102,7 +108,9 @@ if (fileInput) {
           "Falha ao ler o arquivo local. Verifique o conteúdo do .mag.",
           "error"
         );
-        // Garantir que overlay seja escondido em caso de erro
+      })
+      .finally(() => {
+        // Garantir que overlay seja escondido e botão reabilitado SEMPRE
         showUploadOverlay(false);
         if (openBtn) openBtn.disabled = false;
       });
@@ -116,7 +124,7 @@ async function processLocalMag(file) {
 
   // Mostrar overlay e desabilitar botão
   if (openBtn) openBtn.disabled = true;
-  showUploadOverlay(true);
+  showUploadOverlay(true, "Processando arquivo localmente…");
 
   try {
     const zip = await JSZip.loadAsync(file);
@@ -225,11 +233,8 @@ async function processLocalMag(file) {
   } catch (error) {
     console.error("Erro ao processar arquivo:", error);
     throw error;
-  } finally {
-    // SEMPRE desabilitar overlay e reabilitar botão ao final
-    showUploadOverlay(false);
-    if (openBtn) openBtn.disabled = false;
   }
+  // Nota: overlay e botão são gerenciados no .finally() do fileInput.addEventListener
 }
 
 function revokeObjectUrls() {
