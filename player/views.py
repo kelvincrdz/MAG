@@ -37,7 +37,7 @@ def player_view(request):
     # Verificar se está logado
     if not request.session.get('magPlayerLogado'):
         return redirect('login')
-    return render(request, 'player/player.html', {"initial": None, "debug": settings.DEBUG})
+    return render(request, 'player/player.html', {"initial": None})
 
 
 def _safe_extract_mag(file_obj, base_output_dir: Path) -> tuple[str, Path]:
@@ -231,7 +231,6 @@ def player_with_package(request, pkg_id: str):
             'title': initial_audio_title,
         },
         'tracks': tracks,
-        'debug': settings.DEBUG,
     }
     return render(request, 'player/player.html', context)
 
@@ -294,7 +293,6 @@ def arquivos_view(request, pkg_id: str):
         'pkg_id': pkg_id,
         'audio_files': audio_urls,
         'markdowns': rendered_markdowns,
-        'debug': settings.DEBUG,
     }
     return render(request, 'player/arquivos.html', context)
 
