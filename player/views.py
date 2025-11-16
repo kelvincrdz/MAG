@@ -5,6 +5,7 @@ from django.http import Http404
 import uuid
 import zipfile
 from pathlib import Path
+import shutil
 from urllib.parse import quote
 
 # Código de acesso padrão
@@ -50,46 +51,98 @@ def _safe_extract_mag(file_obj, base_output_dir: Path) -> tuple[str, Path]:
     arq_dir = out_dir / 'Arquivos'
     depo_dir.mkdir(parents=True, exist_ok=True)
     arq_dir.mkdir(parents=True, exist_ok=True)
+    # Limites e extensões aceitas para minimizar I/O e evitar zip-bomb
+    CHUNK_SIZE = 1024 * 1024  # 1MB
+    MAX_PACKAGE_BYTES = getattr(settings, 'MAG_MAX_PACKAGE_BYTES', 300 * 1024 * 1024)  # 300MB
+    MAX_FILE_BYTES = getattr(settings, 'MAG_MAX_FILE_BYTES', 100 * 1024 * 1024)  # 100MB por arquivo
+    ALLOWED_EXTS = {'.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.oga', '.md', '.markdown'}
 
-    with zipfile.ZipFile(file_obj) as z:
-        for info in z.infolist():
-            name = info.filename.replace('\\', '/')
-            # Normaliza e limita extração a pastas desejadas (case-insensitive)
-            lower = name.lower()
-            
-            # Determina a pasta de destino baseado no início do caminho
-            target_path = None
-            target_base = None
-            
-            if lower.startswith('depoimento/'):
-                # Remove o prefixo 'Depoimento/' ou 'depoimento/' e coloca em depo_dir
-                relative_path = name.split('/', 1)[1] if '/' in name else ''
-                if relative_path:
-                    target_path = (depo_dir / relative_path).resolve()
-                    target_base = depo_dir
-            elif lower.startswith('arquivos/'):
-                # Remove o prefixo 'Arquivos/' ou 'arquivos/' e coloca em arq_dir
-                relative_path = name.split('/', 1)[1] if '/' in name else ''
-                if relative_path:
-                    target_path = (arq_dir / relative_path).resolve()
-                    target_base = arq_dir
-            
-            if not target_path or not target_base:
-                continue
-                
-            # Evita path traversal
-            if not str(target_path).startswith(str(target_base.resolve())):
-                continue
-            
-            # Se for diretório, cria e pula
-            if info.filename.endswith('/'):
-                target_path.mkdir(parents=True, exist_ok=True)
-                continue
-            
-            # Extrai o arquivo
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            with z.open(info) as src, open(target_path, 'wb') as dst:
-                dst.write(src.read())
+    try:
+        with zipfile.ZipFile(file_obj) as z:
+            # Filtra apenas entradas sob Arquivos/ ou Depoimento/
+            candidates: list[zipfile.ZipInfo] = []
+            total_uncompressed = 0
+            for info in z.infolist():
+                name = info.filename.replace('\\', '/')
+                lower = name.lower()
+                # pula diretórios
+                if name.endswith('/'):
+                    continue
+                # mantém apenas dentro de pastas alvo
+                if not (lower.startswith('depoimento/') or lower.startswith('arquivos/')):
+                    continue
+                # restringe por extensão
+                ext = Path(name).suffix.lower()
+                if ext and ext not in ALLOWED_EXTS:
+                    continue
+                # ignora entradas sem tamanho válido (defensivo)
+                if info.file_size is None:
+                    continue
+                # limite por arquivo
+                if info.file_size > MAX_FILE_BYTES:
+                    continue
+                candidates.append(info)
+                total_uncompressed += int(info.file_size or 0)
+
+            # Checa espaço disponível e tamanho total estimado
+            try:
+                usage = shutil.disk_usage(str(base_output_dir))
+                free_bytes = usage.free
+            except Exception:
+                # fallback conservador se não for possível medir
+                free_bytes = MAX_PACKAGE_BYTES
+
+            if total_uncompressed > MAX_PACKAGE_BYTES:
+                raise OSError(122, 'Pacote excede limite configurado para extração')
+            if total_uncompressed > free_bytes * 0.9:  # mantém folga de 10%
+                raise OSError(122, 'Espaço em disco insuficiente para extrair o pacote')
+
+            # Extração com cópia em chunks e verificação de path traversal
+            bytes_written = 0
+            for info in candidates:
+                name = info.filename.replace('\\', '/')
+                lower = name.lower()
+
+                target_path = None
+                target_base = None
+                if lower.startswith('depoimento/'):
+                    relative_path = name.split('/', 1)[1] if '/' in name else ''
+                    if relative_path:
+                        target_path = (depo_dir / relative_path).resolve()
+                        target_base = depo_dir
+                elif lower.startswith('arquivos/'):
+                    relative_path = name.split('/', 1)[1] if '/' in name else ''
+                    if relative_path:
+                        target_path = (arq_dir / relative_path).resolve()
+                        target_base = arq_dir
+
+                if not target_path or not target_base:
+                    continue
+                if not str(target_path).startswith(str(target_base.resolve())):
+                    continue
+
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                written_for_file = 0
+                with z.open(info) as src, open(target_path, 'wb') as dst:
+                    while True:
+                        chunk = src.read(CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        dst.write(chunk)
+                        written_for_file += len(chunk)
+                        bytes_written += len(chunk)
+                        # aborta se ultrapassar qualquer limite (defensivo)
+                        if written_for_file > MAX_FILE_BYTES or bytes_written > MAX_PACKAGE_BYTES:
+                            raise OSError(122, 'Limite de tamanho excedido durante a extração')
+
+    except Exception:
+        # Em qualquer falha, remove diretório parcialmente extraído (best-effort)
+        try:
+            if out_dir.exists():
+                shutil.rmtree(out_dir, ignore_errors=True)
+        except Exception:
+            pass
+        raise
 
     return pkg_id, out_dir
 
@@ -132,6 +185,16 @@ def upload_mag(request):
         pkg_id, out_dir = _safe_extract_mag(mag_file, base_output)
     except zipfile.BadZipFile:
         messages.error(request, 'Arquivo corrompido ou não é um ZIP válido.')
+        return redirect('player')
+    except OSError as e:
+        if getattr(e, 'errno', None) == 122:
+            messages.error(
+                request,
+                'Falha no upload: espaço em disco insuficiente no servidor. '
+                'Exclua pacotes antigos ou reduza o tamanho do .mag.'
+            )
+        else:
+            messages.error(request, f'Falha ao processar o arquivo: {e}')
         return redirect('player')
 
     # Redireciona para o player com o pacote

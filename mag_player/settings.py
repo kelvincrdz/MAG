@@ -148,3 +148,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Session settings
 SESSION_COOKIE_AGE = 86400  # 1 dia
 SESSION_SAVE_EVERY_REQUEST = True
+
+# MAG upload/extract limits (can be overridden by env vars)
+MAG_MAX_PACKAGE_BYTES = int(os.getenv('MAG_MAX_PACKAGE_BYTES', str(300 * 1024 * 1024)))  # 300MB
+MAG_MAX_FILE_BYTES = int(os.getenv('MAG_MAX_FILE_BYTES', str(100 * 1024 * 1024)))        # 100MB
