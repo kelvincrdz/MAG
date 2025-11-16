@@ -1,5 +1,7 @@
 // Elementos do DOM
-const fileInput = document.getElementById("fileInput");
+const fileInput =
+  document.getElementById("fileInput") ||
+  document.querySelector('input[type="file"][name="magFile"]');
 const openBtn = document.getElementById("openBtn");
 const playPauseBtn = document.getElementById("playPauseBtn");
 const rewindBtn = document.getElementById("rewindBtn");
@@ -15,6 +17,7 @@ const playPauseIcon = document.getElementById("playPauseIcon");
 const songTitle = document.getElementById("songTitle");
 const cassettePlayer = document.querySelector(".cassette-player");
 const trackSelect = document.getElementById("trackSelect");
+const localModeToggle = document.getElementById("localModeToggle");
 
 // Elementos das fitas para controle do progresso
 const tape1Main = document.getElementById("tape1-main");
@@ -28,6 +31,8 @@ const tape2Ring3 = document.getElementById("tape2-ring3");
 
 let isDragging = false;
 let isPlaying = false;
+let currentObjectUrls = [];
+let cachedMeta = null;
 
 // Configurações das fitas
 const tapeConfig = {
@@ -51,20 +56,286 @@ if (openBtn) {
 }
 
 // Upload do arquivo .mag para o servidor
+function showUploadOverlay(show) {
+  const overlay = document.getElementById("uploadOverlay");
+  if (!overlay) return;
+  overlay.style.display = show ? "flex" : "none";
+}
+
 if (fileInput) {
   fileInput.addEventListener("change", function (e) {
     const file = e.target.files[0];
     if (!file) return;
     const name = file.name.toLowerCase();
     if (!(name.endsWith(".mag") || name.endsWith(".zip"))) {
-      alert("Por favor, selecione um arquivo .mag");
+      showToast("Por favor, selecione um arquivo .mag", "error");
+      return;
+    }
+    // Checagem rápida de tamanho no cliente (limite generoso: 200MB)
+    const CLIENT_MAX_BYTES = 200 * 1024 * 1024;
+    if (file.size > CLIENT_MAX_BYTES) {
+      showToast("Arquivo muito grande. Limite máximo: 200MB.", "error");
       return;
     }
     const form = document.getElementById("uploadForm");
-    if (form) {
+    const useLocal = localModeToggle ? localModeToggle.checked : true;
+    if (useLocal) {
+      processLocalMag(file)
+        .then(() => {
+          // Salva o pacote localmente após processar
+          return cacheStorePackage(file)
+            .then(() => {
+              showToast(
+                `Pacote salvo localmente: ${file.name || "arquivo"}`,
+                "success"
+              );
+            })
+            .catch(() => {});
+        })
+        .catch((err) => {
+          console.error("Falha ao processar arquivo local:", err);
+          showToast(
+            "Falha ao ler o arquivo local. Verifique o conteúdo do .mag.",
+            "error"
+          );
+          showUploadOverlay(false);
+          if (openBtn) openBtn.disabled = false;
+        });
+    } else if (form) {
+      try {
+        if (openBtn) openBtn.disabled = true;
+        showUploadOverlay(true);
+      } catch (_) {}
       form.submit();
     }
   });
+}
+
+async function processLocalMag(file) {
+  if (!window.JSZip) throw new Error("JSZip não carregado");
+  if (!window.marked) throw new Error("marked não carregado");
+  if (!window.DOMPurify) throw new Error("DOMPurify não carregado");
+
+  try {
+    if (openBtn) openBtn.disabled = true;
+    showUploadOverlay(true);
+  } catch (_) {}
+
+  const zip = await JSZip.loadAsync(file);
+  const allowedExts = new Set([
+    ".mp3",
+    ".wav",
+    ".ogg",
+    ".m4a",
+    ".aac",
+    ".flac",
+    ".oga",
+    ".md",
+    ".markdown",
+  ]);
+
+  const audioEntries = [];
+  const mdEntries = [];
+  zip.forEach((relativePath, entry) => {
+    if (entry.dir) return;
+    const norm = relativePath.replace(/\\\\/g, "/");
+    const lower = norm.toLowerCase();
+    if (!(lower.startsWith("depoimento/") || lower.startsWith("arquivos/")))
+      return;
+    const ext = (norm.slice(norm.lastIndexOf(".")) || "").toLowerCase();
+    if (!allowedExts.has(ext)) return;
+    if (ext === ".md" || ext === ".markdown") {
+      mdEntries.push(entry);
+    } else {
+      audioEntries.push(entry);
+    }
+  });
+
+  // Carrega áudios e markdowns em paralelo
+  // Limpa URLs anteriores para evitar vazamento de memória
+  try {
+    revokeObjectUrls();
+  } catch (_) {}
+
+  const audioPromises = audioEntries.map(async (entry) => {
+    const blob = await entry.async("blob");
+    const url = URL.createObjectURL(blob);
+    currentObjectUrls.push(url);
+    const name = entry.name.split("/").pop() || entry.name;
+    return { name, url };
+  });
+
+  const mdPromises = mdEntries.map(async (entry) => {
+    const text = await entry.async("string");
+    const html = window.marked.parse(text);
+    const safe = window.DOMPurify.sanitize(html);
+    const name = entry.name.split("/").pop() || entry.name;
+    return { name, html: safe };
+  });
+
+  const [audios, markdowns] = await Promise.all([
+    Promise.all(audioPromises),
+    Promise.all(mdPromises),
+  ]);
+
+  // Popular seletor de faixas
+  const trackContainer = document.getElementById("localTrackContainer");
+  if (trackContainer && trackSelect) {
+    trackSelect.innerHTML = "";
+    if (audios.length > 0) {
+      audios.forEach((a, idx) => {
+        const opt = document.createElement("option");
+        opt.value = a.url;
+        opt.textContent = `${idx + 1}. ${a.name}`;
+        trackSelect.appendChild(opt);
+      });
+      trackContainer.style.display = "block";
+      setAudioSource(audios[0].url, audios[0].name, false);
+    } else {
+      trackContainer.style.display = "none";
+    }
+  }
+
+  // Renderizar markdowns
+  const mdContainer = document.getElementById("localMarkdowns");
+  if (mdContainer) {
+    if (markdowns.length > 0) {
+      mdContainer.style.display = "block";
+      mdContainer.innerHTML = markdowns
+        .map(
+          (m, i) => `
+          <div class="md-file-name"><i class="fas fa-file-alt" style="margin-right:6px;"></i>${
+            m.name
+          }</div>
+          <div class="markdown-body">${m.html}</div>
+          ${
+            i < markdowns.length - 1
+              ? '<hr style="border:none; border-top:1px solid #3a4e5e; margin:24px 0;">'
+              : ""
+          }
+        `
+        )
+        .join("");
+    } else {
+      mdContainer.style.display = "none";
+      mdContainer.innerHTML = "";
+    }
+  }
+
+  showUploadOverlay(false);
+  if (openBtn) openBtn.disabled = false;
+}
+
+function revokeObjectUrls() {
+  if (!currentObjectUrls || currentObjectUrls.length === 0) return;
+  for (const u of currentObjectUrls) {
+    try {
+      URL.revokeObjectURL(u);
+    } catch (_) {}
+  }
+  currentObjectUrls = [];
+}
+
+window.addEventListener("beforeunload", () => {
+  try {
+    revokeObjectUrls();
+  } catch (_) {}
+});
+
+// Toast notifications
+function ensureToastContainer() {
+  let cont = document.getElementById("toastContainer");
+  if (!cont) {
+    cont = document.createElement("div");
+    cont.id = "toastContainer";
+    document.body.appendChild(cont);
+  }
+  return cont;
+}
+
+function showToast(message, kind = "info", timeoutMs = 4000) {
+  const cont = ensureToastContainer();
+  const el = document.createElement("div");
+  el.className = `toast toast-${kind}`;
+  el.textContent = message;
+  cont.appendChild(el);
+  // force reflow to enable transition
+  void el.offsetWidth;
+  el.classList.add("show");
+  const t = setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 250);
+  }, timeoutMs);
+  return () => {
+    clearTimeout(t);
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 250);
+  };
+}
+
+// IndexedDB helpers para persistência local
+function cacheOpenDb() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window))
+      return reject(new Error("IndexedDB indisponível"));
+    const req = indexedDB.open("mag_local", 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("packages")) {
+        db.createObjectStore("packages");
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () =>
+      reject(req.error || new Error("Falha ao abrir IndexedDB"));
+  });
+}
+
+async function cacheStorePackage(fileOrBlob) {
+  try {
+    const db = await cacheOpenDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("packages", "readwrite");
+      const store = tx.objectStore("packages");
+      const meta = { name: fileOrBlob.name || "pacote.mag", ts: Date.now() };
+      store.put(meta, "last_meta");
+      store.put(fileOrBlob, "last_blob");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn("Não foi possível salvar pacote localmente:", e);
+  }
+}
+
+async function cacheLoadPackage() {
+  const db = await cacheOpenDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("packages", "readonly");
+    const store = tx.objectStore("packages");
+    const getMeta = store.get("last_meta");
+    const getBlob = store.get("last_blob");
+    tx.oncomplete = () => {
+      resolve({ meta: getMeta.result || null, blob: getBlob.result || null });
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function cacheClearPackage() {
+  try {
+    const db = await cacheOpenDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("packages", "readwrite");
+      const store = tx.objectStore("packages");
+      store.delete("last_meta");
+      store.delete("last_blob");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn("Não foi possível limpar cache local:", e);
+  }
 }
 
 // Botão de play/pause
@@ -81,8 +352,9 @@ if (playPauseBtn) {
           })
           .catch((error) => {
             console.error("Erro ao reproduzir:", error);
-            alert(
-              "Erro ao reproduzir o arquivo. Verifique se é um arquivo de áudio válido."
+            showToast(
+              "Erro ao reproduzir o arquivo. Verifique se é um arquivo de áudio válido.",
+              "error"
             );
           });
       }
@@ -385,8 +657,37 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   updatePlayButton();
 
-  // Se vier áudio inicial do servidor
+  // Tentar carregar pacote salvo localmente se não houver áudio inicial do servidor
   const initial = document.getElementById("initialData");
+  const shouldLoadCached =
+    (localModeToggle ? localModeToggle.checked : false) && !initial;
+  if (shouldLoadCached) {
+    cacheLoadPackage()
+      .then(({ meta, blob }) => {
+        cachedMeta = meta;
+        if (blob) {
+          console.log("Carregando pacote local salvo:", meta && meta.name);
+          return processLocalMag(blob).then(() => {
+            const name = (meta && meta.name) || "pacote";
+            showToast(`Carregado do cache: ${name}`, "info");
+          });
+        }
+      })
+      .catch((e) =>
+        console.warn("Sem pacote local salvo ou erro ao carregar:", e)
+      );
+  }
+
+  // Botão limpar cache local
+  const clearBtn = document.getElementById("clearLocalBtn");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", async () => {
+      await cacheClearPackage();
+      showToast("Pacote salvo localmente foi removido.", "info");
+    });
+  }
+
+  // Se vier áudio inicial do servidor
   if (initial) {
     const url = initial.getAttribute("data-audio-url");
     const title = initial.getAttribute("data-title") || "Depoimento";

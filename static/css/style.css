@@ -41,6 +41,168 @@ body > * {
   z-index: 2;
 }
 
+/* Upload overlay */
+#uploadOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 9999;
+  color: #e2eef6;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+#uploadOverlay .spinner {
+  width: 52px;
+  height: 52px;
+  border: 4px solid rgba(108, 207, 246, 0.25);
+  border-top-color: #6ccff6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Toast notifications */
+#toastContainer {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  background: rgba(15, 19, 22, 0.95);
+  border: 1px solid #2a2e32;
+  color: #e2eef6;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  min-width: 220px;
+  max-width: 90vw;
+  font-size: 14px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast.toast-success {
+  border-color: rgba(40, 167, 69, 0.6);
+}
+.toast.toast-error {
+  border-color: rgba(220, 53, 69, 0.6);
+}
+.toast.toast-info {
+  border-color: rgba(108, 207, 246, 0.5);
+}
+
+/* Markdown base styles (used in local mode on player page) */
+.markdown-body {
+  color: #cfe3f1;
+  line-height: 1.8;
+  font-size: 15px;
+  word-wrap: break-word;
+}
+.markdown-body h1 {
+  color: #e2eef6;
+  font-size: 28px;
+  margin: 0 0 16px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #3a4e5e;
+  font-weight: 700;
+}
+.markdown-body h2 {
+  color: #d5e5f2;
+  font-size: 24px;
+  margin: 24px 0 12px;
+  font-weight: 600;
+}
+.markdown-body h3 {
+  color: #c5dae8;
+  font-size: 18px;
+  margin: 20px 0 10px;
+  font-weight: 600;
+}
+.markdown-body p {
+  margin: 0 0 14px 0;
+}
+.markdown-body code {
+  background: rgba(42, 46, 50, 0.6);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #f0a8d0;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+}
+.markdown-body pre {
+  background: rgba(10, 14, 18, 0.8);
+  padding: 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid #2a2e32;
+  margin: 14px 0;
+}
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  color: #88d4f5;
+}
+.markdown-body a {
+  color: #6bb6ff;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s;
+}
+.markdown-body a:hover {
+  border-bottom-color: #6bb6ff;
+}
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid #3a4e5e;
+  margin: 20px 0;
+}
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+}
+.markdown-body th,
+.markdown-body td {
+  padding: 10px;
+  border: 1px solid #2a2e32;
+  text-align: left;
+}
+.markdown-body th {
+  background: rgba(42, 46, 50, 0.6);
+  font-weight: 600;
+}
+.md-file-name {
+  color: #9fb3c8;
+  font-size: 13px;
+  margin: 0 0 12px 0;
+  padding: 8px 12px;
+  background: rgba(42, 46, 50, 0.4);
+  border-radius: 6px;
+  display: inline-block;
+}
+
 /* Track Selector Hover Effect */
 #trackSelect {
   transition: all 0.3s ease;

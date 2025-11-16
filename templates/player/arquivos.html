@@ -334,6 +334,20 @@
             </div>
         </div>
 
+        <div class="local-mode-bar"
+            style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; background: rgba(15,19,22,0.9); border:1px solid #2a2e32; border-radius:12px; padding:14px;">
+            <label style="font-size:13px; color:#cfe3f1; display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="localModeToggle" checked>
+                Modo local (não enviar arquivo)
+            </label>
+            <label for="fileInput" class="minimal-link" style="cursor:pointer;">
+                <i class="fas fa-folder-open"></i> Selecionar .mag local
+            </label>
+            <button id="clearLocalBtn" type="button" class="minimal-link" style="cursor:pointer; border:none;">
+                <i class="fas fa-trash"></i> Limpar pacote salvo
+            </button>
+        </div>
+
         <div class="content-layout">
             <div class="markdown-section">
                 {% if markdowns %}
@@ -352,6 +366,8 @@
                     <p>Nenhum arquivo Markdown encontrado neste pacote.</p>
                 </div>
                 {% endif %}
+
+                <div id="localMarkdowns" class="markdown-body" style="display:none; margin-top:16px;"></div>
             </div>
 
             <div class="audio-sidebar">
@@ -547,6 +563,22 @@
         </div>
     </div>
 
+    {# Form de upload fallback quando não há audio_files do servidor #}
+    <form id="uploadForm" action="{% url 'upload_mag' %}" method="post" enctype="multipart/form-data"
+        style="display:none;">
+        {% csrf_token %}
+        <input type="file" id="fileInput" name="magFile" accept=".mag,.zip">
+    </form>
+
+    <div id="uploadOverlay">
+        <div class="spinner"></div>
+        <div style="font-size:14px; opacity:0.9;">Enviando arquivo…</div>
+        <div style="font-size:12px; opacity:0.7; margin-top:4px;">Não feche esta página.</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
     <script src="{% static 'js/player.js' %}"></script>
 </body>
 
