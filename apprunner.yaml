@@ -1,0 +1,24 @@
+version: 1.0
+runtime: python3
+build:
+  commands:
+    pre-build:
+      - echo "Installing dependencies..."
+    build:
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+    post-build:
+      - echo "Running migrations..."
+      - python manage.py migrate --noinput
+      - echo "Collecting static files..."
+      - python manage.py collectstatic --noinput
+run:
+  runtime-version: 3.11
+  command: gunicorn --bind :8000 --workers 2 --threads 4 --timeout 60 mag_player.wsgi:application
+  network:
+    port: 8000
+  env:
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    - name: DJANGO_SETTINGS_MODULE
+      value: "mag_player.settings"

@@ -21,26 +21,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-mag-player-2024-secret-key-change-in-production'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-mag-player-2024-secret-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Set DEBUG = False in production (PythonAnywhere)
-DEBUG = True
+# Set DEBUG = False in production (PythonAnywhere/AWS)
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 # FORM SUBMISSION
-# Add your PythonAnywhere URL here
-CSRF_TRUSTED_ORIGINS = [
+# Add your deployment URLs here (PythonAnywhere, AWS, etc.)
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if os.getenv('CSRF_TRUSTED_ORIGINS') else [
     # "https://nivelKdev.pythonanywhere.com",
 ]
 
 # CSRF Settings for production
-# PythonAnywhere uses HTTPS, so set these to True in production:
-CSRF_COOKIE_SECURE = False  # Set to True when deployed on PythonAnywhere
+# Set to True when deployed on HTTPS (PythonAnywhere/AWS)
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False') == 'True'
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False  # Set to True when deployed on PythonAnywhere
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Application definition
