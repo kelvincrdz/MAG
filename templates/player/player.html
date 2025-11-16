@@ -173,6 +173,12 @@
         <select id="trackSelect" style="display:none;"></select>
         <button id="clearLocalBtn" type="button" style="display:none;"></button>
 
+        <!-- Dados iniciais do servidor (se houver pacote carregado) -->
+        {% if initial and initial.audio_url %}
+        <div id="initialAudio" data-audio-url="{{ initial.audio_url }}" data-title="{{ initial.title }}"
+            style="display:none;"></div>
+        {% endif %}
+
         <!-- Input de arquivo STANDALONE (sem formulário para evitar submit ao servidor) -->
         <input type="file" id="fileInput" name="magFile" accept=".mag,.zip" style="display:none;">
     </div>

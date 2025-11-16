@@ -64,9 +64,15 @@ if (viewFilesBtn) {
     e.preventDefault();
     // Extrai o pkg_id da URL atual (formato: /player/<pkg_id>/)
     const pathParts = window.location.pathname.split("/").filter((p) => p);
-    const pkgId =
-      pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
-    if (pkgId) {
+    // Procura por 'player' e pega o próximo elemento
+    const playerIndex = pathParts.indexOf("player");
+    let pkgId = null;
+
+    if (playerIndex >= 0 && playerIndex < pathParts.length - 1) {
+      pkgId = pathParts[playerIndex + 1];
+    }
+
+    if (pkgId && pkgId !== "") {
       window.location.href = `/arquivos/${pkgId}/`;
     } else {
       showToast(
@@ -175,12 +181,22 @@ async function processLocalMag(file) {
 
     const audioEntries = [];
     const mdEntries = [];
+
+    // Detectar se estamos na página do player ou de arquivos
+    const isPlayerPage = !document.getElementById("localMarkdowns");
+
     zip.forEach((relativePath, entry) => {
       if (entry.dir) return;
       const norm = relativePath.replace(/\\\\/g, "/");
       const lower = norm.toLowerCase();
-      if (!(lower.startsWith("depoimento/") || lower.startsWith("arquivos/")))
-        return;
+
+      // Player: APENAS Depoimento/ | Arquivos: Depoimento/ E Arquivos/
+      const validPath = isPlayerPage
+        ? lower.startsWith("depoimento/")
+        : lower.startsWith("depoimento/") || lower.startsWith("arquivos/");
+
+      if (!validPath) return;
+
       const ext = (norm.slice(norm.lastIndexOf(".")) || "").toLowerCase();
       if (!allowedExts.has(ext)) return;
       if (ext === ".md" || ext === ".markdown") {
