@@ -212,18 +212,23 @@ async function processLocalMag(file) {
       const norm = relativePath.replace(/\\\\/g, "/");
       const lower = norm.toLowerCase();
 
-      // Player: APENAS Depoimento/ | Arquivos: Depoimento/ E Arquivos/
-      const validPath = isPlayerPage
-        ? lower.startsWith("depoimento/")
-        : lower.startsWith("depoimento/") || lower.startsWith("arquivos/");
-
-      if (!validPath) return;
-
       const ext = (norm.slice(norm.lastIndexOf(".")) || "").toLowerCase();
       if (!allowedExts.has(ext)) return;
-      if (ext === ".md" || ext === ".markdown") {
-        mdEntries.push(entry);
-      } else {
+
+      const isMd = ext === ".md" || ext === ".markdown";
+      const inDepo = lower.startsWith("depoimento/");
+      const inArq = lower.startsWith("arquivos/");
+
+      if (isMd) {
+        // Sempre aceitar markdowns de Arquivos/ (e Depoimento/ se existirem), mesmo na página do player
+        if (inArq || inDepo) {
+          mdEntries.push(entry);
+        }
+        return;
+      }
+
+      // Áudios: na página do player, somente Depoimento/; na página de arquivos, ambos
+      if (isPlayerPage ? inDepo : inDepo || inArq) {
         audioEntries.push(entry);
       }
     });
