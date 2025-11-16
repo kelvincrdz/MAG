@@ -8,14 +8,30 @@
 
 ### 2. Comando de Compilação
 
+**Opção Simples (Recomendado):**
+
 ```bash
-pip install --upgrade pip && pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
+pip install -r requirements.txt
 ```
+
+**Opção Completa:**
+
+```bash
+pip install --upgrade pip && pip install -r requirements.txt
+```
+
+> ⚠️ **Importante**: Evite executar `migrate` e `collectstatic` no comando de compilação. Execute-os no comando Start para garantir que as variáveis de ambiente estejam disponíveis.
 
 ### 3. Comando Start
 
 ```bash
-gunicorn --bind :8000 --workers 2 --threads 4 --timeout 60 mag_player.wsgi:application
+python manage.py migrate --noinput && python manage.py collectstatic --noinput --clear && gunicorn --bind :8000 --workers 2 --threads 4 --timeout 60 --access-logfile - --error-logfile - mag_player.wsgi:application
+```
+
+Ou use o script `start.sh`:
+
+```bash
+./start.sh
 ```
 
 ### 4. Porta
@@ -169,21 +185,51 @@ aws apprunner list-operations --service-arn <seu-service-arn>
 
 ## Troubleshooting
 
-### Erro 502 Bad Gateway
+### ❌ Erro: "Failed to build your application source code. Reason: Failed to execute 'build' command"
+
+**Causa**: Comandos complexos ou dependências do sistema faltando no build.
+
+**Soluções**:
+
+1. **Simplifique o comando de build** - use apenas `pip install -r requirements.txt`
+2. **Mova migrate e collectstatic para o comando Start** - eles precisam das variáveis de ambiente
+3. **Use o arquivo apprunner.yaml** - está otimizado e testado
+4. **Verifique requirements.txt** - certifique-se que não há dependências que precisam de compilação (como psycopg2 sem o sufixo -binary)
+
+**Configuração Correta**:
+
+```yaml
+# Build (apenas instalar dependências)
+pip install -r requirements.txt
+
+# Start (executar migrations, collectstatic e servidor)
+python manage.py migrate --noinput && python manage.py collectstatic --noinput --clear && gunicorn ...
+```
+
+### ❌ Erro 502 Bad Gateway
 
 - Verifique os logs do App Runner
 - Confirme que a porta 8000 está configurada corretamente
 - Verifique se as migrations rodaram com sucesso
+- Confirme que SECRET_KEY está configurada
 
-### Static files não carregam
+### ❌ Static files não carregam
 
-- Verifique se `collectstatic` rodou no build
+- Verifique se `collectstatic` rodou no comando Start
 - Confirme que WhiteNoise está configurado no MIDDLEWARE
+- Verifique se DEBUG=False (WhiteNoise só serve arquivos com DEBUG=False)
 
-### Erro de CSRF
+### ❌ Erro de CSRF
 
 - Configure CSRF_TRUSTED_ORIGINS no settings.py com a URL do App Runner
 - Verifique se CSRF_COOKIE_SECURE está True
+- Adicione a variável de ambiente: `CSRF_TRUSTED_ORIGINS=https://sua-url.awsapprunner.com`
+
+### ❌ Erro de ImportError ou ModuleNotFoundError
+
+- Verifique se todas as dependências estão no `requirements.txt`
+- Confirme que o build foi concluído com sucesso
+- Use versões específicas em vez de `>=` quando possível
 
 ## Suporte
 

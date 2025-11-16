@@ -5,13 +5,13 @@
 ### Comando de Compilação (Build Command):
 
 ```
-pip install --upgrade pip && pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
+pip install -r requirements.txt
 ```
 
 ### Comando Start (Start Command):
 
 ```
-gunicorn --bind :8000 --workers 2 --threads 4 --timeout 60 mag_player.wsgi:application
+python manage.py migrate --noinput && python manage.py collectstatic --noinput --clear && gunicorn --bind :8000 --workers 2 --threads 4 --timeout 60 --access-logfile - --error-logfile - mag_player.wsgi:application
 ```
 
 ### Porta (Port):
