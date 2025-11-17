@@ -12,11 +12,13 @@ As seguintes variáveis já estão configuradas no `render.yaml`:
 
 - `DEBUG=False` - Desativa modo debug em produção
 - `SECRET_KEY` - Gerada automaticamente pelo Render
-- `ALLOWED_HOSTS=.onrender.com` - Permite acesso pelo domínio do Render
-- `CSRF_TRUSTED_ORIGINS=https://*.onrender.com` - Configuração de segurança CSRF
+- `ALLOWED_HOSTS=mag-ps6z.onrender.com,.onrender.com` - **IMPORTANTE:** Inclui seu domínio específico
+- `CSRF_TRUSTED_ORIGINS=https://mag-ps6z.onrender.com,https://*.onrender.com` - Configuração de segurança CSRF
 - `CSRF_COOKIE_SECURE=True` - Cookies seguros em HTTPS
 - `SESSION_COOKIE_SECURE=True` - Sessão segura em HTTPS
 - `DATABASE_URL` - Configurada automaticamente pelo banco PostgreSQL
+
+**⚠️ IMPORTANTE:** Ao fazer deploy no Render, substitua `mag-ps6z.onrender.com` pelo seu domínio real.
 
 #### Build e Deploy
 
@@ -62,6 +64,31 @@ Após o deploy, verifique:
 5. ✅ Login com código de acesso funciona
 
 ### Solução de Problemas
+
+#### Erro 500 Internal Server Error
+
+**Sintoma:** Servidor retorna erro 500 ao acessar qualquer página
+
+**Causas comuns:**
+
+1. `ALLOWED_HOSTS` não inclui o domínio do servidor
+2. `SECRET_KEY` não está configurada
+3. Banco de dados não está acessível
+4. Arquivos estáticos não foram coletados
+
+**Solução:**
+
+1. Verifique os logs do Render no dashboard (aba "Logs")
+2. Confirme que `ALLOWED_HOSTS` no `render.yaml` inclui seu domínio exato
+3. Verifique se o banco de dados está online
+4. Force um redeploy completo
+
+**Como verificar os logs no Render:**
+
+- Acesse o dashboard do seu serviço
+- Clique na aba "Logs"
+- Procure por linhas com "ERROR" ou "Exception"
+- Os logs mostrarão o erro específico
 
 #### Erro 404 nos arquivos estáticos
 

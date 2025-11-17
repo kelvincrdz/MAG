@@ -12,9 +12,9 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS
-        value: .onrender.com
+        value: mag-ps6z.onrender.com,.onrender.com
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://*.onrender.com
+        value: https://mag-ps6z.onrender.com,https://*.onrender.com
       - key: CSRF_COOKIE_SECURE
         value: True
       - key: SESSION_COOKIE_SECURE

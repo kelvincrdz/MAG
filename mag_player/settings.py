@@ -32,13 +32,16 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-mag-player-2024-secret-key
 # Set DEBUG = False in production (PythonAnywhere/AWS)
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+# Process ALLOWED_HOSTS - strip whitespace and filter empty strings
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '*').split(',') if h.strip()]
 
 # FORM SUBMISSION
 # Add your deployment URLs here (PythonAnywhere, AWS, etc.)
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if os.getenv('CSRF_TRUSTED_ORIGINS') else [
-    # "https://nivelKdev.pythonanywhere.com",
-]
+csrf_origins = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in csrf_origins.split(',') if o.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = []
 
 # CSRF Settings for production
 # Set to True when deployed on HTTPS (PythonAnywhere/AWS)
@@ -170,3 +173,37 @@ SESSION_SAVE_EVERY_REQUEST = True
 # MAG upload/extract limits (can be overridden by env vars)
 MAG_MAX_PACKAGE_BYTES = int(os.getenv('MAG_MAX_PACKAGE_BYTES', str(300 * 1024 * 1024)))  # 300MB
 MAG_MAX_FILE_BYTES = int(os.getenv('MAG_MAX_FILE_BYTES', str(100 * 1024 * 1024)))        # 100MB
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
