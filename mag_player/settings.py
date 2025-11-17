@@ -29,7 +29,7 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-mag-player-2024-secret-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Set DEBUG = False in production (PythonAnywhere/AWS)
+# Set DEBUG = False em produção (Render/PythonAnywhere/AWS)
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 # Process ALLOWED_HOSTS - strip whitespace and filter empty strings
@@ -98,13 +98,15 @@ WSGI_APPLICATION = 'mag_player.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# Use PostgreSQL in production (Render) or SQLite for local development
-if os.getenv('DATABASE_URL'):
+# Banco de dados: usa PostgreSQL via DATABASE_URL em produção (Render) ou SQLite local
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
-            default=os.getenv('DATABASE_URL'),
+            default=DATABASE_URL,
             conn_max_age=600,
             conn_health_checks=True,
+            ssl_require=True,
         )
     }
 else:
@@ -152,16 +154,19 @@ USE_TZ = True
 
 # WhiteNoise requer um caminho absoluto aqui (deve começar e terminar com "/")
 STATIC_URL = '/static/'
+# Diretório de fontes estáticas do projeto (apenas em dev; ok manter em prod)
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# Permite sobrepor via env se necessário (ex.: Render)
+STATIC_ROOT = os.getenv('STATIC_ROOT', os.path.join(BASE_DIR, "staticfiles"))
 
 # WhiteNoise configuration for serving static files in production
 # Using CompressedStaticFilesStorage instead of Manifest version to avoid strict manifest checks
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-# Media files
+# Media files (uploads) — em produção use um disco persistente (Render Disk)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+# Em Render, configure MEDIA_ROOT via variável de ambiente (ex.: /var/media)
+MEDIA_ROOT = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, "media"))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -209,3 +214,9 @@ LOGGING = {
         },
     },
 }
+
+# Segurança/HTTPS atrás de proxy (Render)
+# Garante que request.is_secure() funcione com X-Forwarded-Proto
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Redireciona para HTTPS quando não estiver em DEBUG
+SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True' if not DEBUG else 'False') == 'True'
