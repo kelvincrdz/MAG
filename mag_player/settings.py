@@ -219,4 +219,6 @@ LOGGING = {
 # Garante que request.is_secure() funcione com X-Forwarded-Proto
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Redireciona para HTTPS quando não estiver em DEBUG
-SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True' if not DEBUG else 'False') == 'True'
+# Em desenvolvimento local com DEBUG=False, não force HTTPS por padrão
+# Em produção (Render), defina SECURE_SSL_REDIRECT=True via variável de ambiente
+SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'
