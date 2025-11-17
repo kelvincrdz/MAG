@@ -50,8 +50,11 @@ MIDDLEWARE = [
     ...
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Usa CompressedStaticFilesStorage (sem manifest) para evitar erros de cache
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 ```
+
+**Nota:** Usamos `CompressedStaticFilesStorage` em vez de `CompressedManifestStaticFilesStorage` para evitar erros de "Missing staticfiles manifest entry" que podem ocorrer com cache.
 
 ### Verificação Pós-Deploy
 
@@ -111,6 +114,21 @@ Após o deploy, verifique:
 
 1. Execute manualmente no servidor: `python manage.py collectstatic --noinput`
 2. Verifique se `STATICFILES_STORAGE` está configurado corretamente
+
+#### Missing staticfiles manifest entry
+
+**Sintoma:** `ValueError: Missing staticfiles manifest entry for 'css/style.css'`
+
+**Causa:** O `CompressedManifestStaticFilesStorage` exige um manifest que pode não ser gerado corretamente.
+
+**Solução:**
+
+1. No `settings.py`, use `CompressedStaticFilesStorage` em vez de `CompressedManifestStaticFilesStorage`:
+   ```python
+   STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+   ```
+2. Faça commit e push para forçar novo deploy
+3. Limpe o cache de build no Render se necessário
 
 #### Erro CSRF
 
