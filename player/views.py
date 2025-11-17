@@ -288,11 +288,35 @@ def arquivos_view(request, pkg_id: str):
         rel = p.relative_to(Path(settings.MEDIA_ROOT))
         url = settings.MEDIA_URL.rstrip('/') + '/' + quote(str(rel).replace('\\', '/'))
         audio_urls.append({'name': p.name, 'url': url})
+        audio_urls = []
+        for p in audio_files:
+            rel = p.relative_to(Path(settings.MEDIA_ROOT))
+            url = settings.MEDIA_URL.rstrip('/') + '/' + quote(str(rel).replace('\\', '/'))
+            audio_urls.append({'name': p.name, 'url': url})
 
+        first_audio_name = audio_urls[0]['name'] if audio_urls else "Selecione uma faixa"
+
+        context = {
+            'pkg_id': pkg_id,
+            'audio_files': audio_urls,
+            'markdowns': rendered_markdowns,
+            'first_audio_name': first_audio_name,
+        }
+        return render(request, 'player/arquivos.html', context)
+
+
+def arquivos_local_view(request):
+    """Renderiza a página de arquivos em modo local (sem pkg_id do servidor).
+    O conteúdo (áudios/markdowns) será carregado via JS a partir do pacote local no navegador.
+    """
+    if not request.session.get('magPlayerLogado'):
+        return redirect('login')
+
+    # Sem pkg_id, sem dados do servidor. O template está preparado para modo local
     context = {
-        'pkg_id': pkg_id,
-        'audio_files': audio_urls,
-        'markdowns': rendered_markdowns,
+        'pkg_id': None,
+        'audio_files': [],
+        'markdowns': [],
     }
     return render(request, 'player/arquivos.html', context)
 

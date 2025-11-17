@@ -98,7 +98,7 @@ WSGI_APPLICATION = 'mag_player.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# Banco de dados: usa PostgreSQL via DATABASE_URL em produção (Render) ou SQLite local
+            # 'sslserver',  # Commented out to avoid requiring django-sslserver for local HTTP development
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
     DATABASES = {
@@ -216,9 +216,12 @@ LOGGING = {
 }
 
 # Segurança/HTTPS atrás de proxy (Render)
-# Garante que request.is_secure() funcione com X-Forwarded-Proto
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-# Redireciona para HTTPS quando não estiver em DEBUG
-# Em desenvolvimento local com DEBUG=False, não force HTTPS por padrão
-# Em produção (Render), defina SECURE_SSL_REDIRECT=True via variável de ambiente
+# Em desenvolvimento (DEBUG=True), não definimos cabeçalhos de proxy SSL.
+# Em produção (atrás de proxy como Render), habilite para que request.is_secure() respeite X-Forwarded-Proto.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+else:
+    SECURE_PROXY_SSL_HEADER = None
+
+# Redirecionamento para HTTPS controlado por variável de ambiente (padrão: desativado)
 SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'

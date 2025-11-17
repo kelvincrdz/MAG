@@ -325,56 +325,99 @@
         <div class="files-header">
             <h2>Arquivos do Pacote</h2>
             <div class="nav-actions">
+                {% if pkg_id %}
                 <a class="minimal-link" href="{% url 'player_with_package' pkg_id %}">
-                    <i class="fas fa-headphones"></i> Voltar ao Player
+                    <i class="fas fa-music" style="margin-right:6px;"></i> Voltar ao Player
                 </a>
+                {% else %}
+                <a class="minimal-link" href="{% url 'player' %}">
+                    <i class="fas fa-music" style="margin-right:6px;"></i> Voltar ao Player
+                </a>
+                {% endif %}
                 <a class="minimal-link" href="/logout/">
-                    <i class="fas fa-sign-out-alt"></i> Sair
+                    <i class="fas fa-sign-out-alt" style="margin-right:6px;"></i> Sair
                 </a>
             </div>
         </div>
 
         <div class="content-layout">
             <div class="markdown-section">
-                {% if markdowns %}
-                {% for md in markdowns %}
-                <div class="md-file-name">
-                    <i class="fas fa-file-alt" style="margin-right:6px;"></i>{{ md.name }}
+                <!-- Markdowns do servidor (se existirem) -->
+                <div id="serverMarkdowns" {% if not markdowns %}style="display:none;" {% endif %}>
+                    {% if markdowns %}
+                    {% if markdowns|length > 1 %}
+                    <div style="margin-bottom:16px;">
+                        <label for="markdownSelect" style="color:#cfe3f1; font-size:13px; margin-right:8px;">Selecionar
+                            arquivo:</label>
+                        <select id="markdownSelect"
+                            style="background:#0f1316; color:#cfe3f1; border:1px solid #3a4e5e; padding:8px 10px; border-radius:8px;">
+                            {% for md in markdowns %}
+                            <option value="{{ forloop.counter0 }}" data-html="{{ md.html|escapejs }}">{{ md.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="selectedMarkdown">
+                        <div class="md-file-name">
+                            <i class="fas fa-file-alt" style="margin-right:6px;"></i>{{ markdowns.0.name }}
+                        </div>
+                        <div class="markdown-body">{{ markdowns.0.html|safe }}</div>
+                    </div>
+                    {% else %}
+                    {% for md in markdowns %}
+                    <div class="md-file-name">
+                        <i class="fas fa-file-alt" style="margin-right:6px;"></i>{{ md.name }}
+                    </div>
+                    <div class="markdown-body">{{ md.html|safe }}</div>
+                    {% if not forloop.last %}
+                    <hr style="border:none; border-top:1px solid #2a2e32; margin:32px 0;">
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                    {% endif %}
                 </div>
-                <div class="markdown-body">{{ md.html|safe }}</div>
-                {% if not forloop.last %}
-                <hr style="border:none; border-top:1px solid #2a2e32; margin:32px 0;">
-                {% endif %}
-                {% endfor %}
-                {% else %}
-                <div class="empty-state">
-                    <i class="fas fa-file-alt" style="font-size:48px; margin-bottom:16px; opacity:0.3;"></i>
-                    <p>Nenhum arquivo Markdown encontrado neste pacote.</p>
-                </div>
-                {% endif %}
 
-                <div id="localMarkdowns" class="markdown-body" style="display:none; margin-top:16px;"></div>
+                <!-- Markdowns do cache local -->
+                <div id="localMarkdowns" class="markdown-body" {% if markdowns %}style="display:none;" {% endif %}>
+                    <div id="localMarkdownsContent"></div>
+                </div>
+
+                <!-- Estado vazio quando não há nenhum markdown -->
+                <div id="emptyMarkdownState" class="empty-state" style="{% if markdowns %}display:none;{% endif %}">
+                    <i class="fas fa-file-alt" style="font-size:48px; margin-bottom:16px; opacity:0.3;"></i>
+                    <p>Nenhum arquivo Markdown encontrado.</p>
+                    <p style="font-size:13px; margin-top:8px; opacity:0.8;">Clique em <strong><i
+                                class="fas fa-folder-open" style="margin-right:6px;"></i> Abrir arquivo</strong> para
+                        carregar um
+                        pacote .mag
+                        local.</p>
+                </div>
             </div>
 
             <div class="audio-sidebar">
                 <h3>
                     <i class="fas fa-music" style="margin-right:8px;"></i>Reprodutor
                 </h3>
-                {% if audio_files %}
+
                 <div style="margin-bottom:12px;">
                     <label for="trackSelect" style="color:#cfe3f1; font-size:13px; margin-right:8px;">Selecionar
                         faixa:</label>
-                    <select id="trackSelect"
-                        style="width:100%; background:#0f1316; color:#cfe3f1; border:1px solid #3a4e5e; padding:8px 10px; border-radius:8px;">
-                        {% for a in audio_files %}
-                        <option value="{{ a.url }}">{{ forloop.counter }}. {{ a.name }}</option>
-                        {% endfor %}
-                    </select>
+                    <div id="localTrackContainer" style="{% if not audio_files %}display:none;{% endif %}">
+                        <select id="trackSelect"
+                            style="width:100%; background:#0f1316; color:#cfe3f1; border:1px solid #3a4e5e; padding:8px 10px; border-radius:8px;">
+                            {% for audio in audio_files %}
+                            <option value="{{ forloop.counter0 }}" data-url="{{ audio.url }}">{{ forloop.counter }}. {{
+                                audio.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
                 {# Dados iniciais para o JS (compatível com player.js) #}
+                {% if audio_files %}
                 <div id="initialAudio" data-audio-url="{{ audio_files.0.url }}" data-title="{{ audio_files.0.name }}"
                     style="display:none;"></div>
+                {% endif %}
 
                 {# Form de upload oculto para compatibilidade com player.js #}
                 <form id="uploadForm" action="{% url 'upload_mag' %}" method="post" enctype="multipart/form-data"
@@ -491,8 +534,8 @@
                                         font-family="Arial, sans-serif" font-size="18" font-weight="bold">MAG
                                         PLAYER</text>
                                     <text x="405" y="110" text-anchor="middle" fill="#333"
-                                        font-family="Arial, sans-serif" font-size="12" id="songTitle">Selecione uma
-                                        faixa</text>
+                                        font-family="Arial, sans-serif" font-size="12" id="songTitle">{{
+                                        first_audio_name }}</text>
                                     <text x="405" y="125" text-anchor="middle" fill="#666"
                                         font-family="Arial, sans-serif" font-size="10" id="songInfo">Reprodutor de Audio
                                         Digital</text>
@@ -502,17 +545,20 @@
 
                         <div class="controls-panel">
                             <div class="main-controls">
-                                <button id="openBtn" class="minimal-btn open-btn" title="Abrir arquivo"
-                                    style="display:none;">
+                                <button id="openBtn" class="minimal-btn open-btn" title="Abrir arquivo">
                                     <i class="fas fa-folder-open"></i>
                                 </button>
-                                <button id="rewindBtn" class="minimal-btn rewind-btn" disabled title="Retroceder 10s">
+                                <button id="viewFilesBtn" class="minimal-btn" title="Ver Arquivos"
+                                    style="display:none;">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                                <button id="rewindBtn" class="minimal-btn rewind-btn" {% if not audio_files%}disabled{% endif %} title="Retroceder 10s">
                                     <i class="fas fa-backward-step"></i>
                                 </button>
-                                <button id="playPauseBtn" class="minimal-btn play-btn" disabled title="Play/Pause">
+                                <button id="playPauseBtn" class="minimal-btn play-btn" {% if not audio_files%}disabled{% endif %} title="Play/Pause">
                                     <i id="playPauseIcon" class="fas fa-play"></i>
                                 </button>
-                                <button id="forwardBtn" class="minimal-btn forward-btn" disabled title="Avançar 10s">
+                                <button id="forwardBtn" class="minimal-btn forward-btn" {% if not audio_files%}disabled{% endif %} title="Avançar 10s">
                                     <i class="fas fa-forward-step"></i>
                                 </button>
                             </div>
@@ -539,12 +585,19 @@
                         <audio id="audioPlayer" preload="none"></audio>
                     </div>
                 </div>
-                {% else %}
-                <div class="empty-state" style="padding:20px;">
+
+                <!-- Estado vazio quando não há áudios -->
+                <div id="emptyAudioState" class="empty-state"
+                    style="{% if audio_files %}display:none;{% else %}padding:20px;{% endif %}">
                     <i class="fas fa-music" style="font-size:32px; margin-bottom:12px; opacity:0.3;"></i>
-                    <p style="font-size:13px;">Nenhum áudio nesta pasta.</p>
+                    <p style="font-size:13px;">Nenhum áudio encontrado.</p>
+                    <p style="font-size:13px; margin-top:8px;">Clique em
+                        <strong><i class="fas fa-folder-open" style="margin-right:6px;"></i> Abrir arquivo</strong> para
+                        carregar um
+                        pacote .mag
+                        local.
+                    </p>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>

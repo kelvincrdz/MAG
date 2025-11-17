@@ -70,29 +70,8 @@ if (viewFilesBtn) {
       return;
     }
 
-    // Modo local: alterna painel de markdowns (se existentes)
-    const panel = document.getElementById("localMarkdowns");
-    const content = document.getElementById("localMarkdownsContent");
-    if (!panel || !content) {
-      showToast("Painel local não disponível.", "error");
-      return;
-    }
-    const hasMd = content.innerHTML.trim().length > 0;
-    if (!hasMd) {
-      showToast(
-        "Nenhum markdown processado ainda. Selecione um arquivo .mag.",
-        "info"
-      );
-      return;
-    }
-    // Toggle
-    if (panel.style.display === "none" || panel.style.display === "") {
-      panel.style.display = "block";
-      viewFilesBtn.classList.add("active");
-    } else {
-      panel.style.display = "none";
-      viewFilesBtn.classList.remove("active");
-    }
+    // Modo local: ir para a página de arquivos local
+    window.location.href = "/arquivos/";
   });
 }
 
@@ -311,36 +290,68 @@ async function processLocalMag(file) {
     console.log("Populando seletor de faixas...");
     const trackContainer = document.getElementById("localTrackContainer");
     if (trackContainer && trackSelect) {
-      trackSelect.innerHTML = "";
+      // Limpar opções existentes do servidor (se houver)
+      const hasServerOptions = Array.from(trackSelect.options).some((opt) =>
+        opt.getAttribute("data-url")
+      );
+
+      if (!hasServerOptions || isPlayerPage) {
+        // Se não há opções do servidor ou estamos no player, limpar tudo
+        trackSelect.innerHTML = "";
+      }
+
       if (audios.length > 0) {
+        // Se estamos na página de arquivos e há opções do servidor, adicionar as locais também
+        const startIndex =
+          hasServerOptions && !isPlayerPage ? trackSelect.options.length : 0;
+
         audios.forEach((a, idx) => {
           const opt = document.createElement("option");
-          opt.value = idx.toString(); // Usa índice em vez de URL
-          opt.textContent = `${idx + 1}. ${a.name}`;
+          opt.value = (startIndex + idx).toString();
+          opt.textContent = `${startIndex + idx + 1}. ${a.name}${
+            hasServerOptions ? " (cache)" : ""
+          }`;
           opt.dataset.lazy = a.lazy ? "true" : "false";
           trackSelect.appendChild(opt);
         });
         trackContainer.style.display = "block";
 
         // Armazena audios globalmente para acesso posterior
-        window.cachedAudios = audios;
+        if (!window.cachedAudios) {
+          window.cachedAudios = audios;
+        } else if (hasServerOptions && !isPlayerPage) {
+          // Na página de arquivos, mesclar com áudios existentes
+          window.cachedAudios = window.cachedAudios.concat(audios);
+        } else {
+          window.cachedAudios = audios;
+        }
 
-        // Carrega o primeiro áudio imediatamente
-        if (audios[0].url) {
+        // Carregar o primeiro áudio se não houver dados do servidor
+        const hasServerData =
+          document.getElementById("initialAudio") &&
+          document
+            .getElementById("initialAudio")
+            .getAttribute("data-audio-url");
+        if (!hasServerData && audios[0].url) {
           setAudioSource(audios[0].url, audios[0].name, false);
         }
       } else {
-        trackContainer.style.display = "none";
+        if (!hasServerOptions) {
+          trackContainer.style.display = "none";
+        }
       }
     } else if (audios.length > 0) {
       // Se não houver trackContainer mas houver áudios, carregar o primeiro
       window.cachedAudios = audios;
-      if (audios[0].url) {
+      const hasServerData =
+        document.getElementById("initialAudio") &&
+        document.getElementById("initialAudio").getAttribute("data-audio-url");
+      if (!hasServerData && audios[0].url) {
         setAudioSource(audios[0].url, audios[0].name, false);
       }
     }
 
-    // Renderizar markdowns APENAS na página de arquivos
+    // Renderizar markdowns
     const mdPanel = document.getElementById("localMarkdowns");
     const mdContent = document.getElementById("localMarkdownsContent");
     window.localMarkdownData = markdowns; // Armazena globalmente
@@ -361,6 +372,22 @@ async function processLocalMag(file) {
           `
           )
           .join("");
+
+        // Na página de arquivos, mostrar o painel automaticamente se não houver markdowns do servidor
+        if (!isPlayerPage) {
+          const serverMdSection = document.getElementById("serverMarkdowns");
+          const hasServerMarkdowns =
+            serverMdSection &&
+            serverMdSection.style.display !== "none" &&
+            serverMdSection.innerHTML.trim().length > 0;
+
+          if (!hasServerMarkdowns) {
+            mdPanel.style.display = "block";
+            // Ocultar estado vazio
+            const emptyState = document.getElementById("emptyMarkdownState");
+            if (emptyState) emptyState.style.display = "none";
+          }
+        }
       } else {
         mdContent.innerHTML = "";
       }
@@ -854,6 +881,11 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   updatePlayButton();
 
+  // Detectar página atual
+  const pageType =
+    (document.body && document.body.getAttribute("data-page")) || "player";
+  const isArquivosPage = pageType === "arquivos";
+
   // Extrair pkg_id do servidor a partir da URL, independente de áudio inicial
   try {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -870,26 +902,92 @@ document.addEventListener("DOMContentLoaded", function () {
     console.warn("Falha ao extrair pkg_id da URL:", e);
   }
 
-  // Tentar carregar pacote salvo localmente ao iniciar (sempre em modo local)
-  cacheLoadPackage()
-    .then(({ meta, blob }) => {
-      cachedMeta = meta;
-      if (blob) {
-        console.log("Carregando pacote local salvo:", meta && meta.name);
-        return processLocalMag(blob).then(() => {
-          const name = (meta && meta.name) || "pacote";
-          showToast(`Carregado do cache: ${name}`, "info");
-        });
-      }
-    })
-    .catch((e) =>
-      console.warn("Sem pacote local salvo ou erro ao carregar:", e)
-    )
-    .finally(() => {
-      // Garantir que overlay seja fechado após carregar cache
-      showUploadOverlay(false);
-      // Nota: O botão Ver Arquivos será mostrado pelo processLocalMag se houver markdowns
-    });
+  // Verifica se há dados iniciais do servidor
+  const initial = document.getElementById("initialAudio");
+  const hasServerData = initial && initial.getAttribute("data-audio-url");
+
+  // Carregar cache local se:
+  // 1. Não houver dados do servidor OU
+  // 2. Estiver na página de arquivos (sempre mostrar cache também)
+  const shouldLoadCache = !hasServerData || isArquivosPage;
+
+  if (shouldLoadCache) {
+    console.log(
+      "Tentando carregar pacote local do cache:",
+      isArquivosPage ? "(página arquivos)" : "(sem dados servidor)"
+    );
+
+    cacheLoadPackage()
+      .then(({ meta, blob }) => {
+        cachedMeta = meta;
+        if (blob) {
+          console.log("Carregando pacote local salvo:", meta && meta.name);
+          return processLocalMag(blob).then(() => {
+            const name = (meta && meta.name) || "pacote";
+
+            // Na página de arquivos, exibir os dados do cache
+            if (isArquivosPage) {
+              // Ocultar mensagens de estado vazio se houver dados do cache
+              const emptyMdState =
+                document.getElementById("emptyMarkdownState");
+              const emptyAudioState =
+                document.getElementById("emptyAudioState");
+
+              if (
+                window.cachedAudios &&
+                window.cachedAudios.length > 0 &&
+                emptyAudioState
+              ) {
+                emptyAudioState.style.display = "none";
+              }
+
+              if (
+                window.localMarkdownData &&
+                window.localMarkdownData.length > 0 &&
+                emptyMdState
+              ) {
+                emptyMdState.style.display = "none";
+              }
+
+              // Exibir seção de markdowns locais se houver
+              const localMdSection = document.getElementById("localMarkdowns");
+              const serverMdSection =
+                document.getElementById("serverMarkdowns");
+              if (
+                localMdSection &&
+                window.localMarkdownData &&
+                window.localMarkdownData.length > 0
+              ) {
+                // Se não há markdowns do servidor, mostrar os locais
+                if (
+                  !serverMdSection ||
+                  serverMdSection.style.display === "none"
+                ) {
+                  localMdSection.style.display = "block";
+                }
+              }
+            }
+
+            showToast(`Carregado do cache: ${name}`, "info");
+          });
+        }
+      })
+      .catch((e) =>
+        console.warn("Sem pacote local salvo ou erro ao carregar:", e)
+      )
+      .finally(() => {
+        // Garantir que overlay seja fechado após carregar cache
+        showUploadOverlay(false);
+      });
+  }
+
+  // Se houver dados iniciais do servidor, carregá-los
+  if (hasServerData && !isArquivosPage) {
+    const url = initial.getAttribute("data-audio-url");
+    const title = initial.getAttribute("data-title") || "Depoimento";
+    console.log("Carregando áudio inicial:", url, title);
+    setAudioSource(url, title);
+  }
 
   // Botão limpar cache local
   const clearBtn = document.getElementById("clearLocalBtn");
@@ -903,7 +1001,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const mdContainer = document.getElementById("localMarkdowns");
       if (mdContainer) {
         mdContainer.style.display = "none";
-        mdContainer.innerHTML = "";
+        const mdContent = document.getElementById("localMarkdownsContent");
+        if (mdContent) mdContent.innerHTML = "";
       }
       if (audioPlayer) {
         audioPlayer.pause();
@@ -917,22 +1016,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Se vier áudio inicial do servidor
-  const initial = document.getElementById("initialAudio");
-  if (initial) {
-    const url = initial.getAttribute("data-audio-url");
-    const title = initial.getAttribute("data-title") || "Depoimento";
-    if (url) {
-      console.log("Carregando áudio inicial:", url, title);
-      setAudioSource(url, title);
-      // Se já identificamos serverPkgId acima, o botão já foi exibido
-    }
-  } else {
-    console.log(
-      "Elemento initialAudio não encontrado - sem pacote do servidor"
-    );
-  }
-
   // Listener para o seletor de faixas (na página de arquivos)
   if (trackSelect) {
     trackSelect.addEventListener("change", async function () {
@@ -941,7 +1024,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (!opt) return;
 
-      // Usa lazy loading se necessário
+      // Verifica se é um áudio do servidor (tem data-url) ou do cache local
+      const serverUrl = opt.getAttribute("data-url");
+      if (serverUrl) {
+        // Áudio do servidor
+        setAudioSource(
+          serverUrl,
+          opt.textContent.replace(/^\d+\.\s*/, ""),
+          false // Não autoplay ao mudar faixa
+        );
+        return;
+      }
+
+      // Áudio do cache local - usa lazy loading se necessário
       if (opt.dataset.lazy === "true") {
         console.log("Carregando faixa sob demanda:", opt.textContent);
         showUploadOverlay(true, "Carregando faixa…");
@@ -951,7 +1046,7 @@ document.addEventListener("DOMContentLoaded", function () {
         showUploadOverlay(false);
 
         if (audio && audio.url) {
-          setAudioSource(audio.url, audio.name, true);
+          setAudioSource(audio.url, audio.name, false); // Não autoplay
         } else {
           showToast("Erro ao carregar faixa", "error");
         }
@@ -959,20 +1054,54 @@ document.addEventListener("DOMContentLoaded", function () {
         // Já está carregado, usa o índice
         const audio = window.cachedAudios && window.cachedAudios[selectedIndex];
         if (audio && audio.url) {
-          setAudioSource(audio.url, audio.name, true);
+          setAudioSource(audio.url, audio.name, false); // Não autoplay
         }
       }
     });
 
-    // Se há um seletor e há opções, carregar o primeiro áudio automaticamente
-    if (trackSelect.options.length > 0 && !initial) {
+    // Se há um seletor e há opções do cache, carregar o primeiro áudio automaticamente (se não houver initial)
+    if (trackSelect.options.length > 0 && !hasServerData) {
       const firstOpt = trackSelect.options[0];
-      const firstAudio = window.cachedAudios && window.cachedAudios[0];
-      if (firstAudio && firstAudio.url) {
-        console.log("Carregando primeira faixa:", firstAudio.name);
-        setAudioSource(firstAudio.url, firstAudio.name);
+
+      // Verifica se é do servidor
+      const serverUrl = firstOpt.getAttribute("data-url");
+      if (serverUrl) {
+        console.log(
+          "Carregando primeira faixa do servidor:",
+          firstOpt.textContent
+        );
+        setAudioSource(
+          serverUrl,
+          firstOpt.textContent.replace(/^\d+\.\s*/, "")
+        );
+      } else {
+        // Do cache local
+        const firstAudio = window.cachedAudios && window.cachedAudios[0];
+        if (firstAudio && firstAudio.url) {
+          console.log("Carregando primeira faixa do cache:", firstAudio.name);
+          setAudioSource(firstAudio.url, firstAudio.name);
+        }
       }
     }
+  }
+
+  // Listener para o seletor de markdowns
+  const markdownSelect = document.getElementById("markdownSelect");
+  if (markdownSelect) {
+    markdownSelect.addEventListener("change", function () {
+      const selectedOption = this.options[this.selectedIndex];
+      const html = selectedOption.getAttribute("data-html");
+      const name = selectedOption.textContent;
+      const selectedDiv = document.getElementById("selectedMarkdown");
+      if (selectedDiv) {
+        selectedDiv.innerHTML = `
+          <div class="md-file-name">
+            <span style="margin-right:6px;">&#128196;</span>${name}
+          </div>
+          <div class="markdown-body">${html}</div>
+        `;
+      }
+    });
   }
 });
 
