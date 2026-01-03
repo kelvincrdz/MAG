@@ -1,72 +1,76 @@
-# MAG Player Django
+# Sistema de RPG Web
 
-## Descrição
+Sistema completo de gerenciamento de RPG com React, Tailwind CSS e Supabase.
 
-Site Django com player de áudio estilo cassette vintage com animação das fitas.
+## Funcionalidades
+
+- ✅ Autenticação simples (jogadores sem senha, mestre com senha)
+- ✅ Atributos personalizáveis com cores customizadas
+- ✅ Barras de recursos dinâmicas
+- ✅ Notas do mestre com autosave
+- ✅ Carrossel de iniciativa com sincronização realtime
+- ✅ Biblioteca de investigação hierárquica (casos > pastas > arquivos)
+- ✅ Viewers completos (Markdown, Áudio, Vídeo, Imagem, PDF)
+- ✅ Sistema de dados virtuais
+- ✅ Dashboards para mestre e jogadores
+- ✅ Modo combate com timer e condições
 
 ## Instalação
 
-1. Crie um ambiente virtual:
+1. Clone o repositório
+2. Instale as dependências:
 
 ```bash
-python -m venv venv
+npm install
 ```
 
-2. Ative o ambiente virtual:
+3. Configure o Supabase:
+
+   - Crie um projeto em https://supabase.com
+   - Execute o SQL em `supabase-schema.sql`
+   - Crie os buckets: `avatars` e `investigation-files`
+   - Configure as políticas RLS conforme o schema
+
+4. Configure as variáveis de ambiente:
 
 ```bash
-# Windows PowerShell
-.\venv\Scripts\Activate.ps1
-
-# Windows CMD
-venv\Scripts\activate.bat
+cp .env.example .env
 ```
 
-3. Instale as dependências:
+Edite o `.env` com suas credenciais do Supabase.
+
+5. Inicie o servidor de desenvolvimento:
 
 ```bash
-pip install -r requirements.txt
+npm run dev
 ```
-
-4. Execute as migrações:
-
-```bash
-python manage.py migrate
-```
-
-5. Inicie o servidor:
-
-```bash
-python manage.py runserver
-```
-
-6. Acesse no navegador:
-
-```
-http://localhost:8000
-```
-
-## Código de Acesso Padrão
-
-**Código:** ORC/DDAE-11.25
-
-## Recursos
-
-- Player de áudio com animação de cassette vintage
-- Suporte a arquivos .mag
-- Animação sincronizada das fitas com o progresso do áudio
-- Interface moderna com estilo retro
-- Sistema de login com código de acesso
-- Controles de reprodução (play/pause, avançar, retroceder)
 
 ## Estrutura do Projeto
 
 ```
-MAG_django/
-├── mag_player/          # Configurações do projeto Django
-├── player/              # App principal
-├── static/              # Arquivos estáticos (CSS, JS)
-├── templates/           # Templates HTML
-├── media/               # Arquivos de mídia (uploads)
-└── manage.py           # Script de gerenciamento Django
+src/
+├── components/       # Componentes React
+├── hooks/           # Custom hooks
+├── lib/             # Utilitários e configurações
+├── pages/           # Páginas principais
+└── utils/           # Funções auxiliares
 ```
+
+## Tecnologias
+
+- React 18
+- Tailwind CSS
+- Supabase (PostgreSQL + Storage + Realtime)
+- Vite
+- React Markdown
+- React PDF
+- DnD Kit (Drag & Drop)
+- Lucide React (Ícones)
+
+## Paleta de Cores
+
+- **Vermelho Principal**: #d8263e
+- **Azul Escuro**: #03182b
+- **Fundo**: #0a0e17
+- **Superfície**: #1a1f2e
+- **Texto**: #f8f9fa
