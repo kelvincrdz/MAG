@@ -92,10 +92,19 @@ const PlayerDashboard = ({ character }) => {
     { id: "dados", label: "Dados", icon: <Dices size={20} /> },
   ];
 
+  // Filtrar casos compartilhados com o jogador
+  const filteredCases = cases.filter((c) => {
+    return (
+      c.shared_with &&
+      (c.shared_with.includes("all") || c.shared_with.includes(character.id))
+    );
+  });
+
   const unviewedCount = files.filter((f) => {
     // Verifica se o arquivo foi compartilhado com o jogador
     const isFileShared =
-      f.shared_with.includes("all") || f.shared_with.includes(character.id);
+      f.shared_with &&
+      (f.shared_with.includes("all") || f.shared_with.includes(character.id));
 
     // Encontra a pasta do arquivo
     const folder = folders.find((fold) => fold.id === f.folder_id);
@@ -107,8 +116,10 @@ const PlayerDashboard = ({ character }) => {
 
     // Verifica se o caso foi compartilhado com o jogador
     const isCaseShared =
-      caseItem.shared_with.includes("all") ||
-      caseItem.shared_with.includes(character.id);
+      caseItem &&
+      caseItem.shared_with &&
+      (caseItem.shared_with.includes("all") ||
+        caseItem.shared_with.includes(character.id));
 
     // Retorna true apenas se o arquivo não foi visto E ambos (arquivo e caso) foram compartilhados
     return !viewedFiles.includes(f.id) && isFileShared && isCaseShared;
@@ -206,15 +217,12 @@ const PlayerDashboard = ({ character }) => {
               )}
 
               <InvestigationTree
-                cases={cases.filter(
-                  (c) =>
-                    c.shared_with.includes("all") ||
-                    c.shared_with.includes(character.id)
-                )}
+                cases={filteredCases}
                 folders={folders.filter((folder) => {
                   const caseItem = cases.find((c) => c.id === folder.case_id);
                   return (
                     caseItem &&
+                    caseItem.shared_with &&
                     (caseItem.shared_with.includes("all") ||
                       caseItem.shared_with.includes(character.id))
                   );
@@ -226,10 +234,12 @@ const PlayerDashboard = ({ character }) => {
                   if (!folder) return false;
                   const caseItem = cases.find((c) => c.id === folder.case_id);
                   const isFileShared =
-                    f.shared_with.includes("all") ||
-                    f.shared_with.includes(character.id);
+                    f.shared_with &&
+                    (f.shared_with.includes("all") ||
+                      f.shared_with.includes(character.id));
                   const isCaseShared =
                     caseItem &&
+                    caseItem.shared_with &&
                     (caseItem.shared_with.includes("all") ||
                       caseItem.shared_with.includes(character.id));
                   return isFileShared && isCaseShared;

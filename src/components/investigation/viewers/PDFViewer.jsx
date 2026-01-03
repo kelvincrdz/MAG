@@ -60,16 +60,20 @@ const PDFViewer = ({ file, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex flex-col">
       {/* Header */}
-      <div className="bg-surface border-b border-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-xl font-bold text-text">{file.file_name}</h2>
+      <div className="bg-surface border-b border-border p-2 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 sm:mb-3">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-text truncate">
+              {file.file_name}
+            </h2>
             {file.description && (
-              <p className="text-sm text-textMuted mt-1">{file.description}</p>
+              <p className="text-xs sm:text-sm text-textMuted mt-1 line-clamp-1">
+                {file.description}
+              </p>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <Button
               variant="icon"
               size="icon"
@@ -86,9 +90,9 @@ const PDFViewer = ({ file, onClose }) => {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4">
           {/* Page Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 justify-center">
             <Button
               variant="secondary"
               size="sm"
@@ -96,8 +100,9 @@ const PDFViewer = ({ file, onClose }) => {
               disabled={pageNumber <= 1}
               icon={<ChevronLeft size={16} />}
             />
-            <span className="text-text font-mono text-sm">
-              Página {pageNumber} de {numPages || "..."}
+            <span className="text-text font-mono text-xs sm:text-sm whitespace-nowrap">
+              <span className="hidden sm:inline">Página </span>
+              {pageNumber}/{numPages || "..."}
             </span>
             <Button
               variant="secondary"
@@ -117,12 +122,12 @@ const PDFViewer = ({ file, onClose }) => {
                   setPageNumber(page);
                 }
               }}
-              className="w-16 px-2 py-1 bg-background border border-border rounded text-text text-center text-sm"
+              className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-background border border-border rounded text-text text-center text-xs sm:text-sm"
             />
           </div>
 
           {/* Zoom Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 justify-center overflow-x-auto">
             <Button
               variant="secondary"
               size="sm"
@@ -130,22 +135,24 @@ const PDFViewer = ({ file, onClose }) => {
               disabled={scale <= 0.5}
               icon={<ZoomOut size={16} />}
             />
-            {zoomLevels.map((level) => (
-              <button
-                key={level.value}
-                onClick={() => setScale(level.value)}
-                className={`
-                  px-2 py-1 rounded text-xs font-medium transition-colors
-                  ${
-                    scale === level.value
-                      ? "bg-primary text-white"
-                      : "bg-background text-textMuted hover:text-text"
-                  }
-                `}
-              >
-                {level.label}
-              </button>
-            ))}
+            <div className="flex items-center gap-1">
+              {zoomLevels.map((level) => (
+                <button
+                  key={level.value}
+                  onClick={() => setScale(level.value)}
+                  className={`
+                    px-1.5 sm:px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap
+                    ${
+                      scale === level.value
+                        ? "bg-primary text-white"
+                        : "bg-background text-textMuted hover:text-text"
+                    }
+                  `}
+                >
+                  {level.label}
+                </button>
+              ))}
+            </div>
             <Button
               variant="secondary"
               size="sm"
@@ -158,7 +165,7 @@ const PDFViewer = ({ file, onClose }) => {
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 overflow-auto bg-black/50 p-8 custom-scrollbar">
+      <div className="flex-1 overflow-auto bg-black/50 p-2 sm:p-8 custom-scrollbar">
         <div className="flex justify-center">
           <Document
             file={file.file_url}
@@ -187,7 +194,7 @@ const PDFViewer = ({ file, onClose }) => {
 
       {/* Thumbnails Sidebar (simplified) */}
       {numPages && numPages > 1 && (
-        <div className="absolute right-0 top-16 bottom-0 w-48 bg-surface/95 border-l border-border overflow-y-auto custom-scrollbar p-2">
+        <div className="hidden lg:block absolute right-0 top-16 bottom-0 w-48 bg-surface/95 border-l border-border overflow-y-auto custom-scrollbar p-2">
           <div className="space-y-2">
             {[...Array(numPages)].map((_, index) => (
               <button

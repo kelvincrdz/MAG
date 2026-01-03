@@ -60,15 +60,19 @@ const ImageViewer = ({ file, onClose, onNavigate }) => {
   return (
     <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex flex-col">
       {/* Header */}
-      <div className="bg-surface border-b border-border p-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-text">{file.file_name}</h2>
+      <div className="bg-surface border-b border-border p-2 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base sm:text-xl font-bold text-text truncate">
+            {file.file_name}
+          </h2>
           {file.description && (
-            <p className="text-sm text-textMuted mt-1">{file.description}</p>
+            <p className="text-xs sm:text-sm text-textMuted mt-1 line-clamp-1 sm:line-clamp-2">
+              {file.description}
+            </p>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
           {onNavigate && (
             <>
               <Button
@@ -156,12 +160,13 @@ const ImageViewer = ({ file, onClose, onNavigate }) => {
       </div>
 
       {/* Info Bar */}
-      <div className="bg-surface border-t border-border p-3 text-center text-textMuted text-sm">
-        <p>
-          {zoom > 1
-            ? "Arraste para mover a imagem"
-            : "Use os controles para zoom e rotação"}
-          • Scroll do mouse para zoom rápido
+      <div className="bg-surface border-t border-border p-2 sm:p-3 text-center text-textMuted text-xs sm:text-sm">
+        <p className="truncate">
+          {zoom > 1 ? "Arraste para mover" : "Use os controles"}
+          <span className="hidden sm:inline">
+            {zoom > 1 ? " a imagem" : " para zoom e rotação"}
+            {" • Scroll do mouse para zoom rápido"}
+          </span>
         </p>
       </div>
     </div>

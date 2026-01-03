@@ -34,17 +34,21 @@ const VideoPlayer = ({ file, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-surface border border-border rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-surface border border-border rounded-lg shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div>
-            <h2 className="text-xl font-bold text-text">{file.file_name}</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b border-border gap-2">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-text truncate">
+              {file.file_name}
+            </h2>
             {file.description && (
-              <p className="text-sm text-textMuted mt-1">{file.description}</p>
+              <p className="text-xs sm:text-sm text-textMuted mt-1 line-clamp-1">
+                {file.description}
+              </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <Button
               variant="icon"
               size="icon"
@@ -69,12 +73,12 @@ const VideoPlayer = ({ file, onClose }) => {
         </div>
 
         {/* Video Player */}
-        <div className="flex-1 bg-black flex items-center justify-center p-4">
+        <div className="flex-1 bg-black flex items-center justify-center p-2 sm:p-4 overflow-hidden">
           <video
             ref={videoRef}
             src={file.file_url}
             controls
-            className="max-w-full max-h-full rounded"
+            className="max-w-full max-h-full rounded w-full"
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
           >
@@ -84,8 +88,10 @@ const VideoPlayer = ({ file, onClose }) => {
 
         {/* Info */}
         {file.description && (
-          <div className="p-4 border-t border-border bg-background/50">
-            <p className="text-textMuted text-sm">{file.description}</p>
+          <div className="p-2 sm:p-4 border-t border-border bg-background/50">
+            <p className="text-textMuted text-xs sm:text-sm line-clamp-2">
+              {file.description}
+            </p>
           </div>
         )}
       </div>

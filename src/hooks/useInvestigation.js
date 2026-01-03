@@ -42,7 +42,7 @@ export const useInvestigation = (characterId) => {
   const createCase = async (name, description = "") => {
     const { data, error } = await supabase
       .from("investigation_cases")
-      .insert({ name, description })
+      .insert({ name, description, shared_with: ["all"] })
       .select()
       .single();
 

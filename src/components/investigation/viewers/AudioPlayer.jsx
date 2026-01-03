@@ -79,17 +79,21 @@ const AudioPlayer = ({ file, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-surface border border-border rounded-lg shadow-2xl w-full max-w-2xl">
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-surface border border-border rounded-lg shadow-2xl w-full max-w-2xl max-h-[95vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h2 className="text-xl font-bold text-text">{file.file_name}</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-6 border-b border-border gap-2">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-text truncate">
+              {file.file_name}
+            </h2>
             {file.description && (
-              <p className="text-sm text-textMuted mt-1">{file.description}</p>
+              <p className="text-xs sm:text-sm text-textMuted mt-1 line-clamp-2">
+                {file.description}
+              </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <Button
               variant="icon"
               size="icon"
@@ -106,10 +110,10 @@ const AudioPlayer = ({ file, onClose }) => {
         </div>
 
         {/* Player */}
-        <div className="p-6 space-y-6">
+        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
           {/* Waveform Visual (simplified) */}
-          <div className="h-32 bg-background rounded-lg border border-border flex items-center justify-center">
-            <div className="flex items-end gap-1 h-20">
+          <div className="h-20 sm:h-32 bg-background rounded-lg border border-border flex items-center justify-center">
+            <div className="flex items-end gap-0.5 sm:gap-1 h-12 sm:h-20">
               {[...Array(40)].map((_, i) => (
                 <div
                   key={i}
@@ -146,15 +150,15 @@ const AudioPlayer = ({ file, onClose }) => {
           </div>
 
           {/* Controls */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 justify-center w-full sm:w-auto">
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => skip(-10)}
                 icon={<SkipBack size={16} />}
               >
-                -10s
+                <span className="hidden sm:inline">-10s</span>
               </Button>
 
               <Button
@@ -170,17 +174,17 @@ const AudioPlayer = ({ file, onClose }) => {
                 onClick={() => skip(10)}
                 icon={<SkipForward size={16} />}
               >
-                +10s
+                <span className="hidden sm:inline">+10s</span>
               </Button>
             </div>
 
             {/* Volume Control */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
               <Button
                 variant="icon"
                 size="icon"
                 onClick={toggleMute}
-                icon={isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                icon={isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
               />
               <input
                 type="range"
@@ -189,7 +193,7 @@ const AudioPlayer = ({ file, onClose }) => {
                 step="0.1"
                 value={volume}
                 onChange={handleVolumeChange}
-                className="w-24 h-2 bg-background rounded-lg appearance-none cursor-pointer
+                className="w-20 sm:w-24 h-2 bg-background rounded-lg appearance-none cursor-pointer
                   [&::-webkit-slider-thumb]:appearance-none
                   [&::-webkit-slider-thumb]:w-3
                   [&::-webkit-slider-thumb]:h-3
@@ -200,24 +204,28 @@ const AudioPlayer = ({ file, onClose }) => {
           </div>
 
           {/* Playback Speed */}
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-sm text-textMuted">Velocidade:</span>
-            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-              <button
-                key={rate}
-                onClick={() => changePlaybackRate(rate)}
-                className={`
-                  px-3 py-1 rounded text-sm font-medium transition-colors
-                  ${
-                    playbackRate === rate
-                      ? "bg-primary text-white"
-                      : "bg-background text-textMuted hover:text-text"
-                  }
-                `}
-              >
-                {rate}x
-              </button>
-            ))}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+            <span className="text-xs sm:text-sm text-textMuted">
+              Velocidade:
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
+              {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                <button
+                  key={rate}
+                  onClick={() => changePlaybackRate(rate)}
+                  className={`
+                    px-2 sm:px-3 py-1 rounded text-xs sm:text-sm font-medium transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0
+                    ${
+                      playbackRate === rate
+                        ? "bg-primary text-white"
+                        : "bg-background text-textMuted hover:text-text"
+                    }
+                  `}
+                >
+                  {rate}x
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Hidden Audio Element */}
