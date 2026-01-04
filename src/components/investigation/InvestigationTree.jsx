@@ -13,6 +13,11 @@ import {
   Eye,
   X,
   Filter,
+  FileText,
+  Music,
+  Video,
+  Image,
+  FileType,
 } from "lucide-react";
 import Button from "../common/Button";
 import Badge from "../common/Badge";
@@ -20,13 +25,13 @@ import Input from "../common/Input";
 
 const getFileIcon = (type) => {
   const icons = {
-    markdown: "📄",
-    audio: "🎵",
-    video: "🎥",
-    image: "📷",
-    pdf: "📃",
+    markdown: <FileText size={20} className="text-blue-400" />,
+    audio: <Music size={20} className="text-purple-400" />,
+    video: <Video size={20} className="text-red-400" />,
+    image: <Image size={20} className="text-green-400" />,
+    pdf: <FileType size={20} className="text-orange-400" />,
   };
-  return icons[type] || "📄";
+  return icons[type] || <File size={20} className="text-gray-400" />;
 };
 
 const FileNode = ({
@@ -55,7 +60,7 @@ const FileNode = ({
         }`}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <span className="text-2xl">{getFileIcon(file.file_type)}</span>
+          <div className="flex-shrink-0">{getFileIcon(file.file_type)}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span
@@ -66,18 +71,18 @@ const FileNode = ({
                 {file.file_name}
               </span>
               {showNew && (
-                <Badge color="#10b981" size="sm">
-                  🆕 Novo
+                <Badge color="#2c3638" size="sm">
+                  Novo
                 </Badge>
               )}
               {file.shared_with && !file.shared_with.includes("all") && (
-                <Badge color="#3b82f6" size="sm">
-                  🔒 Restrito
+                <Badge color="#c97d0d" size="sm">
+                  Restrito
                 </Badge>
               )}
               {file.shared_with && file.shared_with.includes("all") && (
-                <Badge color="#8b5cf6" size="sm">
-                  👥 Todos
+                <Badge color="#2c3638" size="sm">
+                  Todos
                 </Badge>
               )}
             </div>
@@ -177,7 +182,7 @@ const FolderNode = ({
           )}
           <span className="text-text font-semibold">{folder.name}</span>
           {unviewedCount > 0 && (
-            <Badge color="#10b981" size="sm">
+            <Badge color="#2c3638" size="sm">
               {unviewedCount} novos
             </Badge>
           )}
@@ -344,7 +349,7 @@ const InvestigationTree = ({
           <div className="flex gap-3">
             <div className="flex-1">
               <Input
-                placeholder="🔍 Buscar arquivos..."
+                placeholder=" Buscar arquivos..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 icon={<Search size={16} />}
@@ -374,7 +379,7 @@ const InvestigationTree = ({
               size="sm"
               onClick={() => setFilterType("new")}
               icon={
-                <Badge color="#10b981" size="sm">
+                <Badge color="#2c3638" size="sm">
                   Novo
                 </Badge>
               }
@@ -386,7 +391,7 @@ const InvestigationTree = ({
               size="sm"
               onClick={() => setFilterType("shared")}
             >
-              🔒 Restritos
+              Restritos
             </Button>
           </div>
         </div>
@@ -455,20 +460,20 @@ const InvestigationTree = ({
                       {caseItem.name}
                     </h3>
                     {unviewedTotal > 0 && (
-                      <Badge color="#10b981">
+                      <Badge color="#2c3638">
                         {unviewedTotal} novo{unviewedTotal > 1 ? "s" : ""}
                       </Badge>
                     )}
                     {caseItem.shared_with &&
                       !caseItem.shared_with.includes("all") && (
-                        <Badge color="#3b82f6" size="sm">
-                          🔒 Restrito
+                        <Badge color="#c97d0d" size="sm">
+                          Restrito
                         </Badge>
                       )}
                     {caseItem.shared_with &&
                       caseItem.shared_with.includes("all") && (
                         <Badge color="#8b5cf6" size="sm">
-                          👥 Todos
+                          Todos
                         </Badge>
                       )}
                   </button>

@@ -61,7 +61,7 @@ const RollResult = ({ roll }) => {
               = {roll.result}
               {roll.details?.isCritical && (
                 <Badge
-                  color={roll.result === 1 ? "#ef4444" : "#10b981"}
+                  color={roll.result === 1 ? "#ef4444" : "#2c3638"}
                   className="ml-2"
                 >
                   {roll.result === 1 ? "💀 FALHA CRÍTICA!" : "⭐ CRÍTICO!"}

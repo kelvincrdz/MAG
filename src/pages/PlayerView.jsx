@@ -210,7 +210,7 @@ const PlayerDashboard = ({ character }) => {
               {unviewedCount > 0 && (
                 <Card className="bg-primary/10 border-primary">
                   <p className="text-primary font-semibold">
-                    🆕 Você tem {unviewedCount}{" "}
+                    Você tem {unviewedCount}{" "}
                     {unviewedCount === 1 ? "arquivo novo" : "arquivos novos"}!
                   </p>
                 </Card>

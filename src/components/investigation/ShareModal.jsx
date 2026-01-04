@@ -172,18 +172,18 @@ const ShareModal = ({
           </h5>
           <div className="flex flex-wrap gap-2">
             {shareWithAll ? (
-              <Badge color="#8b5cf6">
+              <Badge color="#2c3638">
                 <Globe size={14} className="mr-1" />
                 Todos os jogadores
               </Badge>
             ) : selectedCharacters.length === 0 ? (
-              <Badge color="#ef4444">
+              <Badge color="#b1343c">
                 <Lock size={14} className="mr-1" />
                 Nenhum jogador selecionado
               </Badge>
             ) : (
               <>
-                <Badge color="#3b82f6">
+                <Badge color="#c97d0d">
                   <Lock size={14} className="mr-1" />
                   {selectedCharacters.length}{" "}
                   {selectedCharacters.length === 1 ? "jogador" : "jogadores"}
@@ -191,7 +191,7 @@ const ShareModal = ({
                 {selectedCharacters.map((charId) => {
                   const char = availableCharacters.find((c) => c.id === charId);
                   return char ? (
-                    <Badge key={charId} color="#10b981">
+                    <Badge key={charId} color="#2c3638">
                       {char.name}
                     </Badge>
                   ) : null;

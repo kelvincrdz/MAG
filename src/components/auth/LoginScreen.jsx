@@ -108,7 +108,9 @@ const LoginScreen = ({ onLogin }) => {
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-primary mb-2">Sistema RPG</h1>
+          <h1 className="text-5xl font-bold text-primary mb-2">
+            Arquivistad8263e
+          </h1>
           <p className="text-textMuted">Faça login para continuar</p>
         </div>
 
